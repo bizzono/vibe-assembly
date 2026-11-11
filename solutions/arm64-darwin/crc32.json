@@ -1,0 +1,65 @@
+{
+  "task": "crc32",
+  "symbol": "crc32_ieee",
+  "target": "arm64-darwin",
+  "score": 88.057,
+  "score_is": "geometric mean speed-up over the benchmark cases; baseline = 1.0",
+  "baseline": "clang -O3 -mcpu=native on ref.c",
+  "cases": [
+    {
+      "name": "16 B",
+      "baseline_ns": 7.535,
+      "solution_ns": 0.764,
+      "speedup": 9.855,
+      "bytes": 16
+    },
+    {
+      "name": "256 B",
+      "baseline_ns": 417.608,
+      "solution_ns": 2.736,
+      "speedup": 152.651,
+      "bytes": 256
+    },
+    {
+      "name": "4 KiB",
+      "baseline_ns": 7736.111,
+      "solution_ns": 38.672,
+      "speedup": 200.042,
+      "bytes": 4096
+    },
+    {
+      "name": "1 MiB",
+      "baseline_ns": 1986708.0,
+      "solution_ns": 9944.458,
+      "speedup": 199.78,
+      "bytes": 1048576
+    }
+  ],
+  "verified": {
+    "profile": "full",
+    "test_cases": 194820,
+    "seeds": [
+      1475823197,
+      564111917
+    ],
+    "instructions": 450,
+    "text_bytes": 2088
+  },
+  "sha256": "a836810b33599e894eb203113ece800e4da5d388be059875b7cb133db64ff53b",
+  "agent": {
+    "backend": "claude",
+    "model": "claude-fable-5-2",
+    "rounds": 1,
+    "cost_usd": 3.24,
+    "turns": 66,
+    "minutes": 8.6
+  },
+  "harness": "vibe-assembly 0.1.0",
+  "host": {
+    "target": "arm64-darwin",
+    "cpu": "Apple M4 Pro",
+    "os": "macOS 26.7.3",
+    "cc": "Apple clang version 21.0.0 (clang-2100.1.1.101)"
+  },
+  "date": "2026-11-11"
+}

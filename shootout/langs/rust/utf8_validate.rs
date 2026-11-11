@@ -23,7 +23,9 @@ fn utf8_validate(s: &[u8]) -> u64 {
             let lo = if c == 0xE0 { 0xA0 } else { 0x80 }; // E0: no overlong encodings
             let hi = if c == 0xED { 0x9F } else { 0xBF }; // ED: no UTF-16 surrogates
             match tail {
-                [b1, b2, tail @ ..] if within(*b1, lo, hi) && within(*b2, 0x80, 0xBF) => rest = tail,
+                [b1, b2, tail @ ..] if within(*b1, lo, hi) && within(*b2, 0x80, 0xBF) => {
+                    rest = tail;
+                }
                 _ => return 0,
             }
         } else if within(c, 0xF0, 0xF4) {
@@ -33,7 +35,7 @@ fn utf8_validate(s: &[u8]) -> u64 {
                 [b1, b2, b3, tail @ ..]
                     if within(*b1, lo, hi) && within(*b2, 0x80, 0xBF) && within(*b3, 0x80, 0xBF) =>
                 {
-                    rest = tail
+                    rest = tail;
                 }
                 _ => return 0,
             }

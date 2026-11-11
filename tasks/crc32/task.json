@@ -5,9 +5,31 @@
   "summary": "CRC-32 (the zlib/PNG/Ethernet checksum) of a byte buffer",
   "goal_speedup": 10.0,
   "bench": [
-    {"name": "16 B", "size": 16},
-    {"name": "256 B", "size": 256},
-    {"name": "4 KiB", "size": 4096},
-    {"name": "1 MiB", "size": 1048576}
+    {
+      "name": "16 B",
+      "size": 16
+    },
+    {
+      "name": "256 B",
+      "size": 256
+    },
+    {
+      "name": "4 KiB",
+      "size": 4096
+    },
+    {
+      "name": "1 MiB",
+      "size": 1048576
+    }
+  ],
+  "rivals": [
+    {
+      "name": "zlib",
+      "source": "rivals/zlib.c",
+      "ldflags": [
+        "-lz"
+      ],
+      "note": "crc32_z() from the system zlib (hand-optimized by its vendor)"
+    }
   ]
 }

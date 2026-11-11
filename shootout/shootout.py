@@ -200,7 +200,17 @@ def build_ruby(kernel: str, bdir: Path) -> List[str]:
     d = LANGS_DIR / "ruby"
     if not (d / (kernel + ".rb")).is_file():
         raise Skip("no langs/ruby/%s.rb" % kernel)
-    return [tool("ruby"), str(d / "main.rb"), str(d / (kernel + ".rb"))]
+    ruby = tool("ruby")
+    yjit = ["--yjit"] if ruby_has_yjit(ruby) else []
+    return [ruby, *yjit, str(d / "main.rb"), str(d / (kernel + ".rb"))]
+
+
+def ruby_has_yjit(ruby: str) -> bool:
+    try:
+        return subprocess.run([ruby, "--yjit", "-e", "exit(RubyVM::YJIT.enabled? ? 0 : 1)"], capture_output=True,
+                              timeout=30).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 LANGS = OrderedDict([
@@ -226,8 +236,9 @@ LANGS = OrderedDict([
             "version": lambda: "node " + first_line(["node", "--version"])}),
     ("python", {"name": "Python", "note": "CPython", "build": build_python,
                 "version": lambda: first_line(["python3", "--version"])}),
-    ("ruby", {"name": "Ruby", "note": "CRuby", "build": build_ruby,
-              "version": lambda: first_line(["ruby", "--version"])}),
+    ("ruby", {"name": "Ruby", "note": "CRuby, YJIT on when the build has it", "build": build_ruby,
+              "version": lambda: first_line(["ruby", "--version"]) +
+              (" +YJIT" if shutil.which("ruby") and ruby_has_yjit(shutil.which("ruby")) else "")}),
 ])
 
 

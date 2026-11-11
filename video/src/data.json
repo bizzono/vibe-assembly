@@ -1,0 +1,183 @@
+{
+ "draft": true,
+ "story": [
+  {
+   "kind": "cmd",
+   "text": "$ vibeasm run wordcount"
+  },
+  {
+   "kind": "log",
+   "text": "round 1/2: agent working"
+  },
+  {
+   "kind": "log",
+   "text": "  wrote v1_tbx.s"
+  },
+  {
+   "kind": "log",
+   "text": "  $ vibeasm bench v1_tbx.s                     FAIL  v1_tbx.s does not assemble"
+  },
+  {
+   "kind": "log",
+   "text": "  $ vibeasm bench v1_tbx.s                     geomean 15.53x"
+  },
+  {
+   "kind": "log",
+   "text": "  $ vibeasm bench v1_tbx.s v2_saba.s           geomean 15.52x 19.29x"
+  },
+  {
+   "kind": "log",
+   "text": "  $ vibeasm bench v2_saba.s v3_tbl3.s          FAIL  wrong result on test case #238"
+  },
+  {
+   "kind": "log",
+   "text": "  $ vibeasm bench v2_saba.s v3_tbl3.s          geomean 19.17x 20.62x"
+  },
+  {
+   "kind": "log",
+   "text": "  judging with hold-out seeds..."
+  },
+  {
+   "kind": "log",
+   "text": "  VERIFIED, 20.61x vs the compiler (23112 hold-out test cases)"
+  },
+  {
+   "kind": "log",
+   "text": "final verification of the winner before installing..."
+  },
+  {
+   "kind": "reject",
+   "text": "the best candidate failed final verification: wrong result on test case #11499"
+  },
+  {
+   "kind": "log",
+   "text": "round 2/3: agent working"
+  },
+  {
+   "kind": "log",
+   "text": "  edited solution.s"
+  },
+  {
+   "kind": "log",
+   "text": "  VERIFIED, 20.57x vs the compiler (266383 hold-out test cases)"
+  },
+  {
+   "kind": "log",
+   "text": "final verification of the winner (new seeds) before installing..."
+  },
+  {
+   "kind": "done",
+   "text": "installed solutions/arm64-darwin/wordcount.s  (20.55x vs the compiler)"
+  }
+ ],
+ "solutions": [
+  {
+   "task": "wordcount",
+   "score": 20.549,
+   "cases": 266383,
+   "rounds": 2,
+   "minutes": 7.0,
+   "cost_usd": 2.55,
+   "model": "claude-fable-5-2"
+  }
+ ],
+ "chart": {
+  "kernels": 6,
+  "rows": [
+   {
+    "lang": "asm",
+    "name": "Assembly",
+    "ratio": 1
+   },
+   {
+    "lang": "zig",
+    "name": "Zig",
+    "ratio": 4.1
+   },
+   {
+    "lang": "c",
+    "name": "C",
+    "ratio": 4.4
+   },
+   {
+    "lang": "c++",
+    "name": "C++",
+    "ratio": 4.4
+   },
+   {
+    "lang": "rust",
+    "name": "Rust",
+    "ratio": 4.6
+   },
+   {
+    "lang": "swift",
+    "name": "Swift",
+    "ratio": 5.9
+   },
+   {
+    "lang": "go",
+    "name": "Go",
+    "ratio": 7.2
+   },
+   {
+    "lang": "java",
+    "name": "Java",
+    "ratio": 8.8
+   },
+   {
+    "lang": "c#",
+    "name": "C#",
+    "ratio": 9.5
+   },
+   {
+    "lang": "javascript",
+    "name": "JavaScript",
+    "ratio": 14.0
+   },
+   {
+    "lang": "python",
+    "name": "Python",
+    "ratio": 410.0
+   },
+   {
+    "lang": "ruby",
+    "name": "Ruby",
+    "ratio": 520.0
+   }
+  ]
+ },
+ "kernels": [
+  {
+   "key": "wordcount",
+   "title": "Word count",
+   "vs_c": 20.6
+  },
+  {
+   "key": "utf8_validate",
+   "title": "UTF-8 validation",
+   "vs_c": 9.9
+  },
+  {
+   "key": "crc32",
+   "title": "CRC-32",
+   "vs_c": 9.9
+  },
+  {
+   "key": "base64_encode",
+   "title": "Base64 encode",
+   "vs_c": 9.9
+  },
+  {
+   "key": "mandelbrot",
+   "title": "Mandelbrot",
+   "vs_c": 9.9
+  },
+  {
+   "key": "nqueens",
+   "title": "N-queens",
+   "vs_c": 1.1
+  }
+ ],
+ "host": "DRAFT",
+ "date": "DRAFT"
+}

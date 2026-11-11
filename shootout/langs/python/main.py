@@ -5,17 +5,15 @@
 
 The kernel is a module defining run(data: bytes) -> int and digest() -> int.
 """
-import sys
-
-sys.dont_write_bytecode = True  # keep __pycache__ out of the source tree
-
 import importlib.util
+import sys
 import time
 
 U64 = 0xFFFFFFFFFFFFFFFF
 
 
 def load_kernel(path):
+    sys.dont_write_bytecode = True  # keep __pycache__ out of the source tree
     spec = importlib.util.spec_from_file_location("kernel", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

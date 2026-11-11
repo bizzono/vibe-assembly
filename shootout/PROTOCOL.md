@@ -10,6 +10,9 @@ differs between two entries is the language.
 prog <input-file> <min_ms>
 ```
 
+For the interpreted languages `prog` is the interpreter, the language's driver and the
+kernel file: `node langs/js/main.js langs/js/crc32.js <input-file> <min_ms>`.
+
 ## What the program does
 
 1. Read the whole input file into memory as bytes. (Not timed.)

@@ -6,7 +6,8 @@
 # Only needed to reproduce the published table. `shootout.py` uses whatever it finds on
 # PATH and skips languages that are missing.
 #
-# Apple Silicon macOS only. Usage: shootout/get-toolchains.sh [rust zig java python ...]
+# Apple Silicon macOS only. Usage: shootout/get-toolchains.sh [rust zig java python ruby]
+# (no arguments: rust zig java python; ruby is built from source and must be named)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -89,9 +90,39 @@ PY
 fi
 [ -x "$TC/python/bin/python3" ] && link "$TC/python/bin/python3" python3
 
+# Ruby has no official macOS binaries, so it is built from the release tarball (a few
+# minutes). Not in the default set: ask for it by name.
+if want ruby && [ "${1:-}" != "" ] && [ ! -x "$TC/ruby/bin/ruby" ]; then
+  echo "== ruby (built from source, with YJIT if rustc is available)"
+  fetch https://cache.ruby-lang.org/pub/ruby/index.txt "$TC/dl/ruby-index.txt"
+  read -r RURL RSHA < <(python3 - "$TC/dl/ruby-index.txt" <<'PY'
+import re, sys
+best = None
+for line in open(sys.argv[1]):
+    parts = line.split()
+    if len(parts) >= 4 and re.fullmatch(r"ruby-(\d+)\.(\d+)\.(\d+)", parts[0]) and parts[1].endswith(".tar.gz"):
+        k = tuple(int(x) for x in parts[0][5:].split("."))
+        if best is None or k > best[0]:
+            best = (k, parts[1], parts[3])
+print(best[1], best[2])
+PY
+)
+  fetch "$RURL" "$TC/dl/ruby.tar.gz"
+  echo "$RSHA  $TC/dl/ruby.tar.gz" | shasum -a 256 -c - >/dev/null
+  rm -rf "$TC/ruby-src" && mkdir -p "$TC/ruby-src" && tar -xzf "$TC/dl/ruby.tar.gz" -C "$TC/ruby-src" --strip-components 1
+  ( cd "$TC/ruby-src"
+    YJIT=--disable-yjit; [ -x "$TC/bin/rustc" ] && YJIT=--enable-yjit
+    PATH="$TC/bin:$PATH" ./configure --prefix="$TC/ruby" --disable-install-doc --disable-install-rdoc $YJIT \
+        --with-out-ext=openssl,psych,readline,fiddle,zlib,dbm,gdbm,win32,win32ole >/dev/null
+    PATH="$TC/bin:$PATH" make -j4 >/dev/null 2>"$TC/dl/ruby-build.log"
+    make install >/dev/null 2>>"$TC/dl/ruby-build.log" )
+  rm -rf "$TC/ruby-src"
+fi
+[ -x "$TC/ruby/bin/ruby" ] && link "$TC/ruby/bin/ruby" ruby
+
 echo
 echo "toolchains in $TC/bin:"
-for t in rustc zig java javac python3; do
+for t in rustc zig java javac python3 ruby; do
   v=--version; [ "$t" = zig ] && v=version
   if [ -x "$TC/bin/$t" ]; then printf '  %-8s %s\n' "$t" "$("$TC/bin/$t" $v 2>&1 | head -1)"; fi
 done

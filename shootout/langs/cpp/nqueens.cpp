@@ -5,7 +5,8 @@
 
 namespace {
 
-std::uint64_t place(std::uint32_t all, std::uint32_t cols, std::uint32_t diag_l, std::uint32_t diag_r) noexcept {
+std::uint64_t place(std::uint32_t all, std::uint32_t cols, std::uint32_t diag_l,
+                    std::uint32_t diag_r) noexcept {
     if (cols == all) return 1;
     std::uint64_t count = 0;
     std::uint32_t open = all & ~(cols | diag_l | diag_r);

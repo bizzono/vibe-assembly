@@ -20,7 +20,7 @@ function main(argv) {
   const file = fs.readFileSync(argv[1]);
   const data = new Uint8Array(file.buffer, file.byteOffset, file.byteLength);
   const minNs = BigInt(argv[2]) * 1000000n;
-  const now = process.hrtime.bigint;
+  const now = () => process.hrtime.bigint(); // monotonic, nanoseconds
 
   if (minNs === 0n) { // cold mode: one call, no digest
     const t0 = now();

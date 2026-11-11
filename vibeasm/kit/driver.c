@@ -360,6 +360,7 @@ typedef struct {
     uint64_t cases;
 } ctx_t;
 
+#define CANARY 4096 /* bytes of canary checked on each side of an output buffer */
 #define POISON(seed) (mix64(seed, 0xABADCAFEull) | 0x8000000000000001ull)
 
 static void emit_fail_head(const char *kind, const fcase *c) {
@@ -414,7 +415,14 @@ static int run_case(ctx_t *cx, const fcase *c) {
     if (want > cap) die("task bug: reference wrote %zu bytes but va_out_cap(%zu) = %zu", want, c->len, cap);
 
     uint8_t *dst = region_place(&cx->out, cap, c->placement, va_next(&r));
-    memset(cx->out.lo, 0xA5, (size_t)(cx->out.hi - cx->out.lo));
+    /* Canaries on both sides of dst. A window is enough: when dst is flush against a
+     * guard page the page catches the rest, and a write that skips 4 KiB of canary and
+     * lands beyond it would have to be aimed. (Filling and scanning the whole region on
+     * every case made this check thirty times slower.) */
+    uint8_t *wlo = (size_t)(dst - cx->out.lo) > CANARY ? dst - CANARY : cx->out.lo;
+    uint8_t *whi = (size_t)(cx->out.hi - (dst + cap)) > CANARY ? dst + cap + CANARY : cx->out.hi;
+    memset(wlo, 0xA5, (size_t)(dst - wlo));
+    memset(dst + cap, 0xA5, (size_t)(whi - (dst + cap)));
     g.out_ptr = dst; g.out_cap = cap;
     g.phase = "candidate";
     alarm(cx->timeout);
@@ -444,8 +452,8 @@ static int run_case(ctx_t *cx, const fcase *c) {
         return 1;
     }
     /* nothing outside [dst, dst+cap) may have been written */
-    for (uint8_t *q = cx->out.lo; q < cx->out.hi; q++) {
-        if (q == dst) { q += cap; if (q >= cx->out.hi) break; }
+    for (uint8_t *q = wlo; q < whi; q++) {
+        if (q == dst) { q += cap; if (q >= whi) break; }
         if (*q != 0xA5) {
             emit_fail_head("write_out_of_bounds", c);
             dprintf(1, ",\"offset_from_dst\":%td,\"out_cap\":%zu,\"input_hex\":\"%s\",\"input_truncated\":%s}\n",

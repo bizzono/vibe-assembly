@@ -180,6 +180,13 @@ def cmd_bench(args) -> int:
         if failure:
             raise UsageError("--vs %s: %s" % (p, failure.summary))
         cands["vs:" + p.stem] = cand.dylib
+    notes = []
+    if args.rivals:
+        for spec in task.rivals:
+            cands[spec["name"]] = s.builder.rival(task, spec)
+            notes.append("%s = %s" % (spec["name"], spec.get("note", "a rival implementation")))
+        if not task.rivals:
+            notes.append("(this task lists no rivals in task.json)")
     try:
         res = bench(s.builder, task, cands, samples=args.samples, sample_us=args.sample_us)
     except BenchError as e:
@@ -191,6 +198,8 @@ def cmd_bench(args) -> int:
         print(json.dumps(out))
     else:
         print(render(res, task, s.builder.baseline_description()))
+        for n in notes:
+            print(n)
     return 0
 
 
@@ -419,6 +428,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add("bench", cmd_bench, "time one or more solutions against the compiler baseline")
     sp.add_argument("paths", nargs="*", metavar="[task] [file.s ...]")
     sp.add_argument("--vs", action="append", help="also time this already-verified file (repeatable)")
+    sp.add_argument("--rivals", action="store_true", help="also time the task's rival implementations (expert libraries)")
     sp.add_argument("--samples", type=int, default=41)
     sp.add_argument("--sample-us", type=int, default=400)
     sp.add_argument("--seed", type=int, default=1)

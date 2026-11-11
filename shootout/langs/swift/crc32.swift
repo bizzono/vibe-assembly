@@ -1,9 +1,9 @@
 // crc32 kernel (Swift): port of tasks/crc32/ref.c, the textbook table-driven CRC-32
 // (one table lookup per input byte).
 
-// The same table as the reference. An array literal of constants is laid out in the
-// binary at compile time, so nothing is built at run time, inside the timed call or
-// outside it.
+// The same table as the reference. The optimizer lays an array literal of constants
+// out in the binary at compile time (a lazily computed global would instead be built
+// inside the first call to `run`), so no table is built in a timed call.
 private let crcTable: [UInt32] = [
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
     0xe963a535, 0x9e6495a3, 0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,

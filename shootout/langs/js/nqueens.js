@@ -20,14 +20,11 @@ function nqueens(n) {
   return place(all, 0, 0, 0);
 }
 
-function u32le(data, at) {
-  return (data[at] | (data[at + 1] << 8) | (data[at + 2] << 16) | (data[at + 3] << 24)) >>> 0;
-}
-
 // The input is n as a little-endian u32.
 function run(data) {
-  const n = data.length >= 4 ? u32le(data, 0) : 0;
-  return nqueens(n);
+  if (data.length < 4) return nqueens(0);
+  const params = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  return nqueens(params.getUint32(0, true));
 }
 
 function digest() {

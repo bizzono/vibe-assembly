@@ -12,13 +12,17 @@ internal static class Kernel
         ReadOnlySpan<byte> alphabet = Alphabet;
         int len = src.Length;
         int i = 0, o = 0;
-        for (; i + 3 <= len; i += 3)
+        // The reference's loop, with two spellings chosen for the JIT: the bound is written
+        // `i <= len - 3` (not `i + 3 <= len`) so the bounds checks on src are proven away, and
+        // the four stores use `o + k` with one `o += 4` instead of four `o++`, which RyuJIT
+        // would otherwise turn into a serial chain of increments.
+        for (; i <= len - 3; i += 3, o += 4)
         {
             uint v = (uint)src[i] << 16 | (uint)src[i + 1] << 8 | src[i + 2];
-            dst[o++] = alphabet[(int)(v >> 18)];
-            dst[o++] = alphabet[(int)((v >> 12) & 63)];
-            dst[o++] = alphabet[(int)((v >> 6) & 63)];
-            dst[o++] = alphabet[(int)(v & 63)];
+            dst[o] = alphabet[(int)(v >> 18)];
+            dst[o + 1] = alphabet[(int)((v >> 12) & 63)];
+            dst[o + 2] = alphabet[(int)((v >> 6) & 63)];
+            dst[o + 3] = alphabet[(int)(v & 63)];
         }
         if (len - i == 1)
         {

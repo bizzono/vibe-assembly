@@ -3,10 +3,10 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <fstream>
-#include <ios>
+#include <cstdio>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -26,15 +26,16 @@ std::uint64_t ns_since(Clock::time_point start) {
     return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count());
 }
 
+// Reads the whole file with one fread, as the C driver does. (An ifstream copies
+// everything through its small buffer, about 1 ms more for the 8 MiB inputs.)
 std::optional<std::vector<std::uint8_t>> read_file(const char* path) {
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    const std::unique_ptr<std::FILE, int (*)(std::FILE*)> file{std::fopen(path, "rb"), &std::fclose};
     if (!file) return std::nullopt;
-    const std::streamoff size = file.tellg();
-    if (size < 0) return std::nullopt;
+    if (std::fseek(file.get(), 0, SEEK_END) != 0) return std::nullopt;
+    const long size = std::ftell(file.get());
+    if (size < 0 || std::fseek(file.get(), 0, SEEK_SET) != 0) return std::nullopt;
     std::vector<std::uint8_t> bytes(static_cast<std::size_t>(size));
-    file.seekg(0);
-    file.read(reinterpret_cast<char*>(bytes.data()), size);
-    if (!file) return std::nullopt;
+    if (std::fread(bytes.data(), 1, bytes.size(), file.get()) != bytes.size()) return std::nullopt;
     return bytes;
 }
 

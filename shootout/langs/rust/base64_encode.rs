@@ -63,9 +63,10 @@ pub fn run(data: &[u8]) -> u64 {
 }
 
 pub fn digest() -> u64 {
+    const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0100_0000_01b3;
     let out = OUTPUT.lock().unwrap();
-    // FNV-1a
     out.buf[..out.len]
         .iter()
-        .fold(0xcbf2_9ce4_8422_2325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3))
+        .fold(FNV_OFFSET_BASIS, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(FNV_PRIME))
 }

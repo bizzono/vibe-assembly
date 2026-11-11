@@ -1,0 +1,50 @@
+task wordcount  target arm64-darwin  agent claude  rounds 2  goal 4x
+
+round 1/2: agent working in runs/wordcount/20261111-094008/work
+  wrote v1_tbx.s
+  $ vibeasm bench v1_tbx.s                     FAIL  v1_tbx.s does not assemble
+  edited v1_tbx.s
+  edited v1_tbx.s
+  $ vibeasm bench v1_tbx.s                     geomean 15.53x
+  wrote v2_saba.s
+  $ vibeasm bench v1_tbx.s v2_saba.s           geomean 15.52x 19.29x
+  wrote v3_tbl3.s
+  $ vibeasm bench v2_saba.s v3_tbl3.s          FAIL  wrong result on test case #238
+  edited v3_tbl3.s
+  $ vibeasm bench v2_saba.s v3_tbl3.s          geomean 19.17x 20.62x
+  wrote NOTES.md
+  $ vibeasm check solution.s --full | tail -1  PASS  solution.s: assembled, lint clean, 11556 differential test cases passed (full profile, seed 1); 135 inst
+  judging with hold-out seeds...
+  VERIFIED, 20.61x vs the compiler (23112 hold-out test cases)
+  goal of 4x reached; stopping.
+
+final verification of the winner before installing...
+
+wordcount: the best candidate failed final verification: wrong result on test case #11499 (run directory: runs/wordcount/20261111-094008)
+task wordcount  target arm64-darwin  agent claude  rounds 2  goal 4x
+resuming 20261111-094008: judging the solution.s left in the work directory...
+  REJECTED (fuzz): wrong result on test case #114370
+
+round 2/3: agent working in runs/wordcount/20261111-094008/work
+  edited solution.s
+  $ vibeasm call solution.s --input .vibeasm-f PASS  solution.s: assembled, lint clean, 133188 differential test cases passed (full profile, seed 1); 135 ins
+  edited NOTES.md
+  edited NOTES.md
+  judging with hold-out seeds...
+  VERIFIED, 20.57x vs the compiler (266383 hold-out test cases)
+
+final verification of the winner (new seeds) before installing...
+case               baseline             solution  vs baseline
+16 B       7.2 ns  2.2 GB/s    0.8 ns  20.9 GB/s        9.46x
+256 B    106.9 ns  2.4 GB/s    4.6 ns  55.5 GB/s       23.17x
+4 KiB     1.70 us  2.4 GB/s   67.0 ns  61.1 GB/s       25.43x
+64 KiB   27.25 us  2.4 GB/s   1.07 us  61.4 GB/s       25.55x
+4 MiB     1.74 ms  2.4 GB/s  67.79 us  61.9 GB/s       25.74x
+geomean                                                20.55x
+
+baseline = clang -O3 -mcpu=native on ref.c. Times are the minimum per call over 101 samples; every timed call was checked against the reference.
+>1.00x means faster than the compiler.
+
+installed solutions/arm64-darwin/wordcount.s  (20.55x vs the compiler)
+
+wordcount: best verified solution scores 20.55x (run directory: runs/wordcount/20261111-094008)

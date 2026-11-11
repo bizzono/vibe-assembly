@@ -86,6 +86,18 @@ class Builder:
                   task.ref_path, "-o", out], what="compiling ref.c of task '%s'" % task.name)
         return out.read_text()
 
+    def rival(self, task: Task, spec: dict) -> Path:
+        """An expert implementation to time against (e.g. the system zlib). Not linted, not trusted."""
+        src = task.dir / spec["source"]
+        flags = ["-O3", "-mcpu=native"] + list(spec.get("cflags", []))
+        ld = list(spec.get("ldflags", []))
+        d = self._dir("rival-%s-%s" % (task.name, spec["name"]), [src.read_bytes(), " ".join(flags + ld).encode()])
+        lib = d / ("rival" + self.target.dylib_ext)
+        if not lib.exists():
+            must([self.target.cc, *self.target.c_flags, *flags, *self.target.shared_flags, src, "-o", lib, *ld],
+                 what="building rival '%s' of task '%s'" % (spec["name"], task.name))
+        return lib
+
     def baseline_description(self) -> str:
         return "%s %s" % (self.target.cc, " ".join(self.target.baseline_flags))
 

@@ -256,6 +256,134 @@ class TestLoop(HarnessCase):
         self.assertGreater(v.cases, 10000)
 
 
+class TestLoopRecovery(HarnessCase):
+    """Resuming a run, and a winner that fails its final verification."""
+
+    def private_root(self, name: str) -> Path:
+        """A throwaway repository root with a copy of the wordcount task, so that
+        installing a solution does not touch the real solutions/ directory."""
+        root = self.tmp / name
+        shutil.copytree(ROOT / "tasks" / "wordcount", root / "tasks" / "wordcount")
+        return root
+
+    def test_resume_continues_in_the_same_work_directory(self):
+        root = self.private_root("resume-root")
+        builder = Builder(root, TARGET)
+        task = load_task(root, "wordcount")
+        mock = "%s %s %s %s" % (sys.executable, ROOT / "tests" / "mock_agent.py",
+                                ZOO / "bad_wrong_result.s", ZOO / "ok_scalar.s")
+        quiet = lambda _text: None  # noqa: E731
+        first = run_task(builder, task, CommandAgent(mock), rounds=1, fresh=True, do_install=False, say=quiet)
+        self.assertFalse(first.ok)
+        again = run_task(builder, task, CommandAgent(mock), rounds=1, do_install=True, say=quiet, resume=True)
+        self.assertEqual(again.run_dir, first.run_dir)
+        self.assertTrue(again.ok, again.message)
+        self.assertEqual([r["round"] for r in again.rounds], [1, 2])
+        self.assertIn("rejected", (again.run_dir / "rounds" / "02" / "brief.md").read_text())
+        installed = root / "solutions" / TARGET.name / "wordcount.s"
+        self.assertEqual(installed.read_text(), (ZOO / "ok_scalar.s").read_text())
+        record = __import__("json").loads(installed.with_suffix(".json").read_text())
+        self.assertEqual(record["agent"]["rounds"], 2)
+        self.assertGreater(record["verified"]["test_cases"], 100000)
+
+    def test_a_winner_that_fails_final_verification_is_never_installed(self):
+        from unittest import mock as umock
+        import vibeasm.loop as loop
+
+        root = self.private_root("final-root")
+        builder = Builder(root, TARGET)
+        task = load_task(root, "wordcount")
+        agent = CommandAgent("%s %s %s" % (sys.executable, ROOT / "tests" / "mock_agent.py", ZOO / "ok_scalar.s"))
+        real_judge = loop.judge
+        calls = []
+
+        def flaky_judge(*args, **kwargs):
+            calls.append(kwargs.get("samples"))
+            v = real_judge(*args, **kwargs)
+            if kwargs.get("samples") == 101:          # the final verification: pretend a rare bug showed up
+                bad = loop.CheckResult(False, "fuzz", "wrong result on test case #99999", "  (simulated rare failure)")
+                return loop.Verdict(False, bad, seeds=v.seeds)
+            return v
+
+        lines = []
+        with umock.patch.object(loop, "judge", flaky_judge):
+            res = run_task(builder, task, agent, rounds=1, fresh=True, do_install=True, say=lines.append,
+                           stop_at_goal=False)
+        self.assertFalse(res.ok)
+        self.assertIn("failed final verification", res.message)
+        self.assertFalse((root / "solutions" / TARGET.name / "wordcount.s").exists(), "must not be installed")
+        notes = (res.run_dir / "work" / "NOTES.md").read_text()
+        self.assertIn("Final verification -- REJECTED", notes)
+        self.assertEqual(res.rounds[-1]["round"], "final")
+
+
+FAKE_CLAUDE = """#!/bin/sh
+# stands in for `claude -p ... --output-format stream-json`: emits the event shapes the
+# harness has met, including the ones that once crashed it
+echo '{"type":"system","subtype":"init","model":"fake"}'
+echo '{"type":"system","subtype":"permission_denied","tool_name":"Bash","message":"denied","decision_reason":"no approval surface"}'
+echo 'not json at all'
+echo '[1,2,3]'
+echo '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"vibeasm check"}}]}}'
+echo '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"PASS  solution.s: ok"}]}}'
+echo "noise on stderr" >&2
+if [ -n "$FAKE_CLAUDE_HANG" ]; then sleep 60; fi
+echo "$VIBEASM_SANDBOX" > sandbox-flag.txt
+echo '{"type":"result","subtype":"success","is_error":false,"result":"done","total_cost_usd":0.5,"num_turns":3,"modelUsage":{"fake-model":{}}}'
+"""
+
+
+class TestClaudeBackend(unittest.TestCase):
+    """The plumbing around a headless agent, with a stand-in `claude` on PATH."""
+
+    def setUp(self):
+        from vibeasm.agent import ClaudeCodeAgent
+        self.Agent = ClaudeCodeAgent
+        self.tmp = Path(tempfile.mkdtemp(prefix="vibeasm-fake-claude-"))
+        fake = self.tmp / "bin" / "claude"
+        fake.parent.mkdir()
+        fake.write_text(FAKE_CLAUDE)
+        fake.chmod(0o755)
+        self.old_env = dict(os.environ)
+        os.environ["PATH"] = str(fake.parent) + os.pathsep + os.environ["PATH"]
+        self.work = self.tmp / "work"
+        self.work.mkdir()
+
+    def tearDown(self):
+        os.environ.clear()
+        os.environ.update(self.old_env)
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_stream_is_logged_summarized_and_survives_odd_events(self):
+        notes = []
+        r = self.Agent(timeout_s=30).run(self.work, ROOT, self.tmp / "agent.log", on_event=notes.append)
+        self.assertTrue(r.ok, r.error)
+        self.assertEqual((r.message, r.turns, r.cost_usd, r.model), ("done", 3, 0.5, "fake-model"))
+        joined = "\n".join(notes)
+        self.assertIn("sandbox denied a Bash call", joined)
+        self.assertRegex(joined, r"\$ vibeasm check\s+PASS")
+        self.assertIn("not json at all", (self.tmp / "agent.log").read_text())
+        self.assertEqual((self.work / "sandbox-flag.txt").read_text().strip(), "1",
+                         "the agent's environment must carry the sandbox flag")
+
+    def test_a_silent_agent_is_stopped_at_the_time_limit(self):
+        os.environ["FAKE_CLAUDE_HANG"] = "1"
+        import time as _time
+        t0 = _time.time()
+        r = self.Agent(timeout_s=2).run(self.work, ROOT, self.tmp / "agent.log")
+        self.assertFalse(r.ok)
+        self.assertIn("exceeded 2 s", r.error)
+        self.assertLess(_time.time() - t0, 15)
+
+    def test_command_line_confines_the_agent(self):
+        cmd = self.Agent(model="m", max_budget_usd=3).command()
+        for flag in ("--safe-mode", "--restricted", "--no-session-persistence"):
+            self.assertIn(flag, cmd)
+        self.assertIn("Bash(vibeasm *)", cmd)
+        self.assertEqual(cmd[cmd.index("--permission-prompts") + 1], "none")
+        self.assertNotIn("--dangerously-skip-permissions", cmd)
+
+
 class TestCli(HarnessCase):
     def vibeasm(self, *args, env=None, cwd=None):
         e = dict(os.environ)
@@ -277,6 +405,22 @@ class TestCli(HarnessCase):
         self.assertEqual(p.returncode, 1)
         self.assertIn("DIFF", p.stdout)
 
+    def test_call_with_a_generated_input(self):
+        p = self.vibeasm("call", "wordcount", str(ZOO / "bad_real_lane_overflow.s"), "--gen", "16177", "--flavor", "4")
+        self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
+        self.assertIn("reference returns 8089", p.stdout)
+        p = self.vibeasm("call", "wordcount", str(ZOO / "ok_scalar.s"), "--gen", "16177", "--flavor", "4")
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+
+    def test_bench_with_rivals(self):
+        src = self.write("crc_compiler.s", self.builder.baseline_asm(self.task("crc32")))
+        p = self.vibeasm("bench", "crc32", str(src), "--rivals", "--samples", "5", "--json")
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        out = __import__("json").loads(p.stdout)
+        self.assertIn("zlib", out["cands"])
+        self.assertGreater(out["scores"]["zlib"], 2.0, "the system zlib should beat a table-driven loop")
+        self.assertAlmostEqual(out["scores"]["crc_compiler"], 1.0, delta=0.35)
+
     def test_agent_sandbox_cannot_run_or_install(self):
         for cmd in (["run", "wordcount"], ["accept", "wordcount", "x.s"], ["new", "x"]):
             p = self.vibeasm(*cmd, env={"VIBEASM_SANDBOX": "1"})
@@ -289,8 +433,10 @@ class TestCli(HarnessCase):
         self.assertEqual(p.returncode, 0, p.stderr)
         for f in ("TASK.md", "ABI.md", "ref.c", "baseline.s", "solution.s", "NOTES.md", "SPEC.md"):
             self.assertTrue((work / f).exists(), f)
-        p = self.vibeasm("check", cwd=str(work))       # the starter returns 0: wrong, but well-formed
-        self.assertEqual(p.returncode, 1)
+        # whatever `work` seeded solution.s with, a function that just returns 0 must fail here
+        (work / "solution.s").write_text("    .text\n    .globl _crc32_ieee\n_crc32_ieee:\n    mov x0, #0\n    ret\n")
+        p = self.vibeasm("check", cwd=str(work))       # no task argument: the directory implies it
+        self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
         self.assertIn("wrong result", p.stdout)
 
     def test_new_task_scaffold_runs_end_to_end(self):

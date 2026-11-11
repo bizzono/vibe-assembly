@@ -30,14 +30,11 @@ function mandelbrot(width, height, maxIter) {
   return total;
 }
 
-function u32le(data, at) {
-  return (data[at] | (data[at + 1] << 8) | (data[at + 2] << 16) | (data[at + 3] << 24)) >>> 0;
-}
-
 // The input is width, height, max_iter as little-endian u32.
 function run(data) {
   if (data.length < 12) return 0;
-  return mandelbrot(u32le(data, 0), u32le(data, 4), u32le(data, 8));
+  const params = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  return mandelbrot(params.getUint32(0, true), params.getUint32(4, true), params.getUint32(8, true));
 }
 
 function digest() {

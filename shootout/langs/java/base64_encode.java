@@ -13,7 +13,9 @@ final class Kernel {
     private static int encode(byte[] src, byte[] dst) {
         final int len = src.length;
         int i = 0, o = 0;
-        for (; i + 3 <= len; i += 3) {
+        /* The reference's `i + 3 <= len`, written so that HotSpot sees a counted loop with a
+         * loop-invariant limit and can hoist the bounds checks on src out of it. */
+        for (; i <= len - 3; i += 3) {
             int v = (src[i] & 0xFF) << 16 | (src[i + 1] & 0xFF) << 8 | (src[i + 2] & 0xFF);
             dst[o++] = ALPHABET[v >>> 18];
             dst[o++] = ALPHABET[(v >>> 12) & 63];

@@ -21,6 +21,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -238,25 +239,52 @@ class ClaudeCodeAgent:
     def run(self, workdir: Path, root: Path, log_path: Path,
             on_event: Optional[Callable[[str], None]] = None) -> AgentResult:
         t0 = time.time()
-        result: Dict[str, Any] = {}
-        calls: Dict[str, str] = {}
+        err_path = log_path.with_suffix(".stderr")
         try:
-            proc = subprocess.Popen(self.command(), cwd=str(workdir), env=_child_env(root),
-                                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    text=True, errors="replace", start_new_session=True)
+            with open(err_path, "w") as err:
+                proc = subprocess.Popen(self.command(), cwd=str(workdir), env=_child_env(root),
+                                        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=err,
+                                        text=True, errors="replace", start_new_session=True)
         except FileNotFoundError:
             return AgentResult(False, error="`claude` not found")
-        deadline = t0 + self.timeout_s
-        timed_out = False
+        timed_out = threading.Event()
+
+        def stop() -> None:              # the session ran out of time: end it, whatever it is doing
+            timed_out.set()
+            _kill_group(proc)
+
+        watchdog = threading.Timer(self.timeout_s, stop)
+        watchdog.daemon = True
+        watchdog.start()
         try:
-            return self._pump(proc, log_path, on_event, calls, deadline, t0)
+            result = self._pump(proc, log_path, on_event)
         finally:
+            watchdog.cancel()
             if proc.poll() is None:      # we are leaving early (error, Ctrl-C): do not orphan the agent
                 _kill_group(proc)
+        secs = time.time() - t0
+        if timed_out.is_set():
+            return AgentResult(False, error="agent session exceeded %d s and was stopped" % self.timeout_s, seconds=secs)
+        if not result:
+            try:
+                tail = err_path.read_text(errors="replace").strip()[-500:]
+            except OSError:
+                tail = ""
+            return AgentResult(False, error="agent produced no result (exit %s): %s" % (proc.returncode, tail), seconds=secs)
+        models = list((result.get("modelUsage") or {}).keys())
+        return AgentResult(ok=not result.get("is_error", False), message=str(result.get("result", "")),
+                           error=str(result.get("result", "")) if result.get("is_error") else "",
+                           cost_usd=float(result.get("total_cost_usd") or 0.0), turns=int(result.get("num_turns") or 0),
+                           seconds=secs, model=self.model or (models[0] if models else ""),
+                           meta={"subtype": result.get("subtype"), "models": models,
+                                 "denials": len(result.get("permission_denials") or [])})
 
-    def _pump(self, proc, log_path, on_event, calls, deadline, t0) -> AgentResult:
+    @staticmethod
+    def _pump(proc, log_path: Path, on_event) -> Dict[str, Any]:
+        """Copy the agent's event stream to the log, report the interesting events, and
+        return the final `result` event (empty if the session ended without one)."""
         result: Dict[str, Any] = {}
-        timed_out = False
+        calls: Dict[str, str] = {}
         with open(log_path, "w") as log:
             assert proc.stdout is not None
             for line in proc.stdout:
@@ -265,6 +293,8 @@ class ClaudeCodeAgent:
                 try:
                     ev = json.loads(line)
                 except json.JSONDecodeError:
+                    continue
+                if not isinstance(ev, dict):
                     continue
                 if ev.get("type") == "result":
                     result = ev
@@ -275,28 +305,11 @@ class ClaudeCodeAgent:
                         note = ""
                     if note:
                         on_event(note)
-                if time.time() > deadline:
-                    timed_out = True
-                    _kill_group(proc)
-                    break
         try:
             proc.wait(timeout=30)
         except subprocess.TimeoutExpired:
             _kill_group(proc)
-        stderr = proc.stderr.read() if proc.stderr else ""
-        secs = time.time() - t0
-        if timed_out:
-            return AgentResult(False, error="agent session exceeded %d s and was stopped" % self.timeout_s, seconds=secs)
-        if not result:
-            return AgentResult(False, error="agent produced no result (exit %s): %s"
-                               % (proc.returncode, stderr.strip()[-500:]), seconds=secs)
-        models = list((result.get("modelUsage") or {}).keys())
-        return AgentResult(ok=not result.get("is_error", False), message=str(result.get("result", "")),
-                           error=str(result.get("result", "")) if result.get("is_error") else "",
-                           cost_usd=float(result.get("total_cost_usd") or 0.0), turns=int(result.get("num_turns") or 0),
-                           seconds=secs, model=self.model or (models[0] if models else ""),
-                           meta={"subtype": result.get("subtype"), "models": models,
-                                 "denials": len(result.get("permission_denials") or [])})
+        return result
 
 
 def _kill_group(proc: subprocess.Popen) -> None:

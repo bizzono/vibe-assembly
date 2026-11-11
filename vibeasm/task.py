@@ -17,6 +17,9 @@ task.json:
       "goal_speedup": 2.0,                the agent loop stops early once this is reached
       "forbid_constants": [14200],        optional: numbers that may not appear in a solution
                                           (answers a solution must compute, not look up)
+      "rivals": [{"name": "zlib", "source": "rivals/zlib.c", "ldflags": ["-lz"], "note": "..."}],
+                                          optional: expert implementations to time against
+                                          (`vibeasm bench --rivals`); never used as the oracle
       "fuzz": {"small_max": 160, "timeout": 5,
                "quick": {"random": 1500, "max_size": 40000, "large_size": 1500000, "sweep_max": 4300},
                "full":  {"random": 8000, "max_size": 200000, "large_size": 3145741, "sweep_max": 17000}},
@@ -80,6 +83,7 @@ class Task:
     bench: List[BenchCase]
     raw: Dict[str, Any]
     forbid_constants: List[int] = field(default_factory=list)
+    rivals: List[Dict[str, Any]] = field(default_factory=list)
 
     @property
     def shape_id(self) -> int:
@@ -169,7 +173,8 @@ def load_task(root: Path, name: str) -> Task:
     return Task(name=str(raw.get("name", d.name)), dir=d.resolve(), symbol=str(symbol), shape=shape,
                 summary=str(raw.get("summary", "")), args=args, cflags=list(raw.get("cflags", [])),
                 goal_speedup=float(raw.get("goal_speedup", 1.5)), fuzz=dict(raw.get("fuzz", {})),
-                bench=bench, raw=raw, forbid_constants=[int(x) for x in raw.get("forbid_constants", [])])
+                bench=bench, raw=raw, forbid_constants=[int(x) for x in raw.get("forbid_constants", [])],
+                rivals=list(raw.get("rivals", [])))
 
 
 def list_tasks(root: Path) -> List[str]:
