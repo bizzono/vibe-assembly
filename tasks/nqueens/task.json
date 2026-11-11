@@ -1,0 +1,15 @@
+{
+  "name": "nqueens",
+  "symbol": "nqueens",
+  "shape": "ints_to_u64",
+  "args": ["n"],
+  "summary": "count the solutions of the n-queens puzzle by backtracking search",
+  "goal_speedup": 1.15,
+  "forbid_constants": [14200, 73712, 365596, 2279184, 14772512, 95815104],
+  "fuzz": {"quick": {"random": 300}, "full": {"random": 1200}},
+  "bench": [
+    {"name": "n=8", "args": [8]},
+    {"name": "n=10", "args": [10]},
+    {"name": "n=12", "args": [12]}
+  ]
+}

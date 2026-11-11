@@ -1,0 +1,13 @@
+{
+  "name": "base64_encode",
+  "symbol": "base64_encode",
+  "shape": "bytes_to_bytes",
+  "summary": "standard Base64 encoding (RFC 4648, with padding)",
+  "goal_speedup": 4.0,
+  "bench": [
+    {"name": "24 B", "size": 24},
+    {"name": "255 B", "size": 255},
+    {"name": "4 KiB", "size": 4096},
+    {"name": "1 MiB", "size": 1048576}
+  ]
+}

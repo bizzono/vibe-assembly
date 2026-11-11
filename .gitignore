@@ -1,0 +1,8 @@
+.vibeasm/
+runs/
+__pycache__/
+*.pyc
+.toolchains/
+node_modules/
+.DS_Store
+.vibeasm-fail/

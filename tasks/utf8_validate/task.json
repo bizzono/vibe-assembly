@@ -1,0 +1,14 @@
+{
+  "name": "utf8_validate",
+  "symbol": "utf8_validate",
+  "shape": "bytes_to_u64",
+  "summary": "is this byte buffer well-formed UTF-8?",
+  "goal_speedup": 4.0,
+  "bench": [
+    {"name": "16 B", "size": 16},
+    {"name": "256 B", "size": 256},
+    {"name": "4 KiB", "size": 4096},
+    {"name": "1 MiB", "size": 1048576},
+    {"name": "1 MiB ASCII", "size": 1048576, "flavor": 1}
+  ]
+}

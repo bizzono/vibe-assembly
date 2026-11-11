@@ -1,0 +1,14 @@
+{
+  "name": "wordcount",
+  "symbol": "wordcount",
+  "shape": "bytes_to_u64",
+  "summary": "count whitespace-separated words in a byte buffer",
+  "goal_speedup": 4.0,
+  "bench": [
+    {"name": "16 B", "size": 16},
+    {"name": "256 B", "size": 256},
+    {"name": "4 KiB", "size": 4096},
+    {"name": "64 KiB", "size": 65536},
+    {"name": "4 MiB", "size": 4194304}
+  ]
+}

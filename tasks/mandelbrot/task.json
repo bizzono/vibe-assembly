@@ -1,0 +1,14 @@
+{
+  "name": "mandelbrot",
+  "symbol": "mandelbrot",
+  "shape": "ints_to_u64",
+  "args": ["width", "height", "max_iter"],
+  "summary": "total escape-time iterations over a Mandelbrot grid (IEEE doubles, bit-exact)",
+  "cflags": ["-ffp-contract=off"],
+  "goal_speedup": 2.5,
+  "bench": [
+    {"name": "64x64, 50 iter", "args": [64, 64, 50]},
+    {"name": "256x256, 200 iter", "args": [256, 256, 200]},
+    {"name": "512x512, 200 iter", "args": [512, 512, 200]}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "crc32",
+  "symbol": "crc32_ieee",
+  "shape": "bytes_to_u64",
+  "summary": "CRC-32 (the zlib/PNG/Ethernet checksum) of a byte buffer",
+  "goal_speedup": 10.0,
+  "bench": [
+    {"name": "16 B", "size": 16},
+    {"name": "256 B", "size": 256},
+    {"name": "4 KiB", "size": 4096},
+    {"name": "1 MiB", "size": 1048576}
+  ]
+}
