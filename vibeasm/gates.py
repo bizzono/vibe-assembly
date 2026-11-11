@@ -209,6 +209,18 @@ def _fail_report(task: Task, ev: Dict[str, Any], dump: Optional[Path]) -> str:
     return "\n".join(lines)
 
 
+def flavors(builder: Builder, task: Task) -> List[str]:
+    """Names of the task's input flavors (flavor 0 first)."""
+    try:
+        code, out, _ = run([builder.driver(task), "info"])
+    except ToolError:
+        return []
+    for ev in parse_events(out):
+        if ev.get("ev") == "info":
+            return list(ev.get("flavors", []))
+    return []
+
+
 def default_dump_dir(builder: Builder, task: Task, source: Path) -> Path:
     """Failing inputs go next to the file inside an agent work directory (the agent can only
     read its own directory), otherwise under the repository's .vibeasm/ scratch area."""
@@ -254,7 +266,8 @@ def check(builder: Builder, task: Task, source: Path, *, seed: int = 1, profile:
            "--random", str(prof["random"]), "--timeout", str(prof["timeout"])]
     if task.is_bytes:
         cmd += ["--small-max", str(prof["small_max"]), "--max-size", str(prof["max_size"]),
-                "--large-size", str(prof["large_size"])]
+                "--large-size", str(prof["large_size"]), "--sweep-max", str(prof["sweep_max"]),
+                "--window-max", str(prof["window_max"]), "--big-windows", str(prof["big_windows"])]
         dump_dir = dump_dir or default_dump_dir(builder, task, source)
         try:
             dump_dir.mkdir(parents=True, exist_ok=True)

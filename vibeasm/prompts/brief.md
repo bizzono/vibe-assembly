@@ -77,7 +77,7 @@ Baseline to beat: `{baseline_desc}` compiling `ref.c`. Its assembly is in
    - replace unpredictable branches with `csel`/`ccmp`/masks, and keep predictable ones;
    - give small inputs their own short path: the benchmark includes tiny inputs, where
      set-up cost dominates;
-   - handle the tail without reading past the end (see `ABI.md`).
+   - handle the tail without reading past the end (see `ABI.md`).{sweep_note}
 5. Keep a lab notebook in `NOTES.md`: what you tried, what it measured, what you would
    try next. Later rounds (possibly a different agent) start from those notes.
 6. **Before you finish**, `solution.s` must be your fastest version that *passes*:

@@ -32,19 +32,28 @@ from .task import Task
 PROMPTS = Path(__file__).resolve().parent / "prompts"
 
 AGENTIC_TOOLS = """\
-Run these from the current directory. They are the only commands you can run (plus
-read-only shell commands), and they are all you need.
+Run these from the current directory. They are the only commands your shell will run
+(plus read-only ones such as `cat` and `ls` inside this directory): anything else is
+denied, and nobody is there to approve it. **Create and change files with your
+file-editing tools, not with shell redirection, heredocs or `sed`.**
 
 | command | what it does |
 |---|---|
 | `vibeasm check [file.s]` | assemble, lint, then run thousands of differential tests against the reference under guard pages and the ABI trampoline. About a second. On failure it prints the exact input, the faulting source line and the registers. Add `--full` for the long version. |
 | `vibeasm bench [a.s b.s ...]` | check, then time against the compiler baseline. Several files are timed side by side in one process: this is how you compare variants. |
-| `vibeasm call [file.s] {call_example} | run one input of your choosing through your code and the reference, and print both results. |
+| `vibeasm call [file.s] {call_example} | run one input of your choosing through your code and the reference, and print both results.{gen_note} |
 | `vibeasm disasm [file.s] --lines` | what your file assembled to, with source line numbers. |
 | `vibeasm baseline` | the assembly the compiler generates for `ref.c` (also saved as `baseline.s`). |
 | `vibeasm cpu` | CPU features of this machine and the subset you may assume. |
 
 With no file argument the tools use `solution.s`."""
+
+SWEEP_NOTE = """
+
+   The check tries **every length** up to several thousand bytes with every kind of
+   input (and windows around 8160, 16320, ... bytes), precisely because counters that
+   overflow and tails that are off by one fail only for a few lengths. If you keep
+   per-lane counters, work out the worst case on paper, *including the tail*."""
 
 ONESHOT_TOOLS = """\
 You cannot run anything in this session. Write the best `solution.s` you can from the
@@ -112,7 +121,15 @@ def build_brief(builder: Builder, task: Task, *, agentic: bool, feedback: str = 
                if agentic else
                "Reply with the complete file in a single fenced code block (```asm ... ```), and nothing after it.")
 
-    tools = AGENTIC_TOOLS.replace("{call_example}", call_example) if agentic else ONESHOT_TOOLS
+    gen_note = ""
+    if task.is_bytes:
+        from .gates import flavors
+        names = flavors(builder, task)
+        gen_note = (" `--gen SIZE --flavor N` builds an input of exactly SIZE bytes with the test generator "
+                    "(flavors: %s), for probing one length or one kind of input."
+                    % ", ".join("%d = %s" % (i, n) for i, n in enumerate(names)))
+    tools = (AGENTIC_TOOLS.replace("{call_example}", call_example).replace("{gen_note}", gen_note)
+             if agentic else ONESHOT_TOOLS)
     text = (PROMPTS / "brief.md").read_text()
     fields = {
         "symbol": task.symbol, "asm_symbol": asm_symbol, "target": target.name,
@@ -120,6 +137,7 @@ def build_brief(builder: Builder, task: Task, *, agentic: bool, feedback: str = 
         "spec": _demote_headings(task.spec_path.read_text().strip()), "deliver_note": deliver,
         "buffer_rule": buffer_rule, "features": target.feature_baseline, "extra_rules": extra_rules,
         "tools": tools, "small_note": small, "bench_cases": "\n".join(rows),
+        "sweep_note": SWEEP_NOTE if task.is_bytes else "",
         "goal": "%g" % task.goal_speedup, "best_note": best_note,
         "feedback": ("## Where things stand\n\n" + feedback.strip() + "\n\n") if feedback.strip() else "",
     }
@@ -230,6 +248,15 @@ class ClaudeCodeAgent:
             return AgentResult(False, error="`claude` not found")
         deadline = t0 + self.timeout_s
         timed_out = False
+        try:
+            return self._pump(proc, log_path, on_event, calls, deadline, t0)
+        finally:
+            if proc.poll() is None:      # we are leaving early (error, Ctrl-C): do not orphan the agent
+                _kill_group(proc)
+
+    def _pump(self, proc, log_path, on_event, calls, deadline, t0) -> AgentResult:
+        result: Dict[str, Any] = {}
+        timed_out = False
         with open(log_path, "w") as log:
             assert proc.stdout is not None
             for line in proc.stdout:
@@ -242,7 +269,10 @@ class ClaudeCodeAgent:
                 if ev.get("type") == "result":
                     result = ev
                 elif on_event:
-                    note = _summarize_stream_event(ev, calls)
+                    try:
+                        note = _summarize_stream_event(ev, calls)
+                    except Exception:      # an event shape we do not know: the log has it, move on
+                        note = ""
                     if note:
                         on_event(note)
                 if time.time() > deadline:
@@ -278,8 +308,10 @@ def _kill_group(proc: subprocess.Popen) -> None:
 
 def _summarize_stream_event(ev: Dict[str, Any], calls: Dict[str, str]) -> str:
     """One short line for the things worth watching live: tool runs and their verdicts."""
-    msg = ev.get("message") or {}
-    content = msg.get("content")
+    if ev.get("type") == "system" and ev.get("subtype") == "permission_denied":
+        return "  (sandbox denied a %s call: %s)" % (ev.get("tool_name"), str(ev.get("decision_reason", ""))[:80])
+    msg = ev.get("message")
+    content = msg.get("content") if isinstance(msg, dict) else None
     if not isinstance(content, list):
         return ""
     notes = []

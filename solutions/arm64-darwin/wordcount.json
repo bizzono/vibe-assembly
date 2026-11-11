@@ -1,0 +1,72 @@
+{
+  "task": "wordcount",
+  "symbol": "wordcount",
+  "target": "arm64-darwin",
+  "score": 20.549,
+  "score_is": "geometric mean speed-up over the benchmark cases; baseline = 1.0",
+  "baseline": "clang -O3 -mcpu=native on ref.c",
+  "cases": [
+    {
+      "name": "16 B",
+      "baseline_ns": 7.23,
+      "solution_ns": 0.764,
+      "speedup": 9.457,
+      "bytes": 16
+    },
+    {
+      "name": "256 B",
+      "baseline_ns": 106.93,
+      "solution_ns": 4.615,
+      "speedup": 23.17,
+      "bytes": 256
+    },
+    {
+      "name": "4 KiB",
+      "baseline_ns": 1703.911,
+      "solution_ns": 67.003,
+      "speedup": 25.43,
+      "bytes": 4096
+    },
+    {
+      "name": "64 KiB",
+      "baseline_ns": 27252.278,
+      "solution_ns": 1066.686,
+      "speedup": 25.549,
+      "bytes": 65536
+    },
+    {
+      "name": "4 MiB",
+      "baseline_ns": 1744625.0,
+      "solution_ns": 67791.571,
+      "speedup": 25.735,
+      "bytes": 4194304
+    }
+  ],
+  "verified": {
+    "profile": "full",
+    "test_cases": 266383,
+    "seeds": [
+      1516741320,
+      616783536
+    ],
+    "instructions": 135,
+    "text_bytes": 620
+  },
+  "sha256": "d3315557713b0b2246d7d05b71225403f68d156527720285433159c6e1d00bc1",
+  "agent": {
+    "backend": "claude",
+    "model": "claude-fable-5-2",
+    "rounds": 2,
+    "cost_usd": 2.55,
+    "turns": 26,
+    "minutes": 7.0
+  },
+  "harness": "vibe-assembly 0.1.0",
+  "host": {
+    "target": "arm64-darwin",
+    "cpu": "Apple M4 Pro",
+    "os": "macOS 26.7.3",
+    "cc": "Apple clang version 21.0.0 (clang-2100.1.1.101)"
+  },
+  "date": "2026-11-11"
+}

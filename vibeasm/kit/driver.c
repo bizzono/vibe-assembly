@@ -5,8 +5,10 @@
  * shared libraries, so several can be compared in one process.
  *
  *   driver info
+ *   driver gen SIZE FLAVOR SEED OUTFILE          (byte shapes: write a generated input)
  *   driver check --symbol S --oracle O.dylib --cand C.dylib [--seed N] [--random N]
- *                [--small-max N] [--max-size N] [--large-size N] [--timeout SEC] [--dump FILE]
+ *                [--small-max N] [--sweep-max N] [--window-max N] [--big-windows 0|1]
+ *                [--max-size N] [--large-size N] [--timeout SEC] [--dump FILE]
  *   driver bench --symbol S --oracle O.dylib --cand NAME=C.dylib ... --case 'name|size|flavor' ...
  *                (ints shape: --case 'name|a,b,c,d')  [--samples N] [--sample-us N] [--seed N]
  *   driver call  --symbol S --oracle O.dylib --cand C.dylib (--input FILE | --args a,b,c,d)
@@ -476,7 +478,7 @@ static uint64_t log_uniform(va_rng *r, uint64_t max) {
 }
 
 static int fuzz(ctx_t *cx, uint64_t seed0, size_t small_max, size_t max_size, size_t large_size,
-                uint64_t random_n) {
+                uint64_t random_n, size_t sweep_max, size_t window_max, int big_windows) {
     unsigned F = va_flavors();
     fcase c;
     g.case_index = 0;
@@ -490,11 +492,37 @@ static int fuzz(ctx_t *cx, uint64_t seed0, size_t small_max, size_t max_size, si
                 RUN();
             }
 
-    /* B: boundary lengths (vector-width and power-of-two edges) */
+    /* B: a contiguous sweep of lengths. Vectorized code keeps per-lane counters that
+     * must be flushed before they overflow (after 255 additions for byte lanes), and
+     * forgetting the last few additions made in the tail is a bug that shows only for a
+     * narrow window of lengths, once per flush period (255 * 16 = 4080 bytes, 255 * 64 =
+     * 16320, ...). Random lengths almost never land in such a window; every length in a
+     * row always does. */
+    for (size_t len = small_max + 1; len <= sweep_max; len++)
+        for (unsigned f = 0; f < F; f++) {
+            c.len = len; c.flavor = f; c.placement = PL_END;
+            RUN();
+        }
+    /* ... and windows around the flush periods the sweep did not reach */
+    {
+        static const size_t periods[] = {4080, 8160, 12240, 16128, 16320, 32256, 32640, 65280, 130560};
+        for (size_t i = 0; i < sizeof periods / sizeof periods[0]; i++) {
+            size_t lo = periods[i] > 16 ? periods[i] - 16 : 0, hi = periods[i] + 150;
+            for (size_t len = lo; len <= hi; len++) {
+                if (len <= sweep_max || len > window_max) continue;
+                for (unsigned f = 0; f < F; f++) {
+                    c.len = len; c.flavor = f; c.placement = PL_END;
+                    RUN();
+                }
+            }
+        }
+    }
+
+    /* B2: boundary lengths (vector-width and power-of-two edges) beyond the sweep */
     for (size_t m = 16; m <= max_size; m = m < 1024 ? m + 16 : m * 2)
         for (int d = -1; d <= 1; d++) {
             size_t len = m + (size_t)d;
-            if (len <= small_max || len > max_size) continue;
+            if (len <= sweep_max || len > max_size) continue;
             for (unsigned f = 0; f < F; f++) {
                 c.len = len; c.flavor = f; c.placement = PL_END;
                 RUN();
@@ -511,14 +539,21 @@ static int fuzz(ctx_t *cx, uint64_t seed0, size_t small_max, size_t max_size, si
         RUN();
     }
 
-    /* D: large inputs (long loops, counter overflow) */
-    if (large_size > max_size)
+    /* D: large inputs (long loops, 16-bit lane counters: 65535 * 16 bytes is 1 MiB) */
+    if (large_size > max_size) {
         for (unsigned f = 0; f < F; f++)
             for (int pl = PL_END; pl <= PL_START; pl++) {
                 c.len = large_size - (size_t)va_below(&r, 67);
                 c.flavor = f; c.placement = pl;
                 RUN();
             }
+        for (size_t len = 1048560 - 2; len <= 1048576 + 66 && big_windows; len += 1 + (size_t)va_below(&r, 3))
+            for (unsigned f = 0; f < F; f++) {
+                if (len > large_size) break;
+                c.len = len; c.flavor = f; c.placement = PL_END;
+                RUN();
+            }
+    }
 #undef RUN
     return 0;
 }
@@ -562,8 +597,8 @@ static int run_case(ctx_t *cx, const fcase *c) {
 }
 
 static int fuzz(ctx_t *cx, uint64_t seed0, size_t small_max, size_t max_size, size_t large_size,
-                uint64_t random_n) {
-    (void)small_max; (void)max_size; (void)large_size;
+                uint64_t random_n, size_t sweep_max, size_t window_max, int big_windows) {
+    (void)small_max; (void)max_size; (void)large_size; (void)sweep_max; (void)window_max; (void)big_windows;
     unsigned F = va_flavors();
     fcase c = {0, 0, 0, 0};
     g.case_index = 0;
@@ -868,12 +903,32 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+#if VA_SHAPE != SHAPE_INTS_U64
+    if (strcmp(mode, "gen") == 0) {
+        /* driver gen SIZE FLAVOR SEED OUTFILE -- write one generated input to a file */
+        if (argc != 6) die("usage: driver gen SIZE FLAVOR SEED OUTFILE");
+        size_t size = (size_t)strtoull(argv[2], NULL, 0);
+        unsigned flavor = (unsigned)strtoul(argv[3], NULL, 0);
+        if (flavor >= va_flavors()) die("flavor out of range");
+        va_rng r;
+        va_seed(&r, strtoull(argv[4], NULL, 0));
+        uint8_t *buf = malloc(size ? size : 1);
+        if (!buf) die("out of memory");
+        va_gen(&r, buf, size, flavor);
+        FILE *f = fopen(argv[5], "wb");
+        if (!f || fwrite(buf, 1, size, f) != size || fclose(f)) die("cannot write %s", argv[5]);
+        return 0;
+    }
+#endif
+
     const char *symbol = NULL, *oracle_path = NULL, *input_path = NULL, *args_spec = NULL;
     static cand_t cands[MAX_CANDS];
     static bcase cases[MAX_CASES];
     int ncand = 0, ncase = 0, samples = 41;
     uint64_t seed = 1, random_n = 2000, sample_us = 400;
     size_t small_max = 160, max_size = 100000, large_size = (3u << 20) + 13;
+    size_t sweep_max = 4300, window_max = 17000;
+    int big_windows = 0;
     unsigned timeout = 5;
 
     for (int i = 2; i < argc; i++) {
@@ -898,6 +953,9 @@ int main(int argc, char **argv) {
         else if (!strcmp(a, "--small-max")) small_max = (size_t)strtoull(ARG(), NULL, 0);
         else if (!strcmp(a, "--max-size")) max_size = (size_t)strtoull(ARG(), NULL, 0);
         else if (!strcmp(a, "--large-size")) large_size = (size_t)strtoull(ARG(), NULL, 0);
+        else if (!strcmp(a, "--sweep-max")) sweep_max = (size_t)strtoull(ARG(), NULL, 0);
+        else if (!strcmp(a, "--window-max")) window_max = (size_t)strtoull(ARG(), NULL, 0);
+        else if (!strcmp(a, "--big-windows")) big_windows = (int)strtol(ARG(), NULL, 0);
         else if (!strcmp(a, "--timeout")) timeout = (unsigned)strtoul(ARG(), NULL, 0);
         else if (!strcmp(a, "--samples")) samples = (int)strtol(ARG(), NULL, 0);
         else if (!strcmp(a, "--sample-us")) sample_us = strtoull(ARG(), NULL, 0);
@@ -929,6 +987,8 @@ int main(int argc, char **argv) {
         g.cand_path = cands[0].path;
 #if VA_SHAPE != SHAPE_INTS_U64
         size_t biggest = large_size > max_size ? large_size : max_size;
+        if (sweep_max > biggest) biggest = sweep_max;
+        if (window_max + 200 > biggest) biggest = window_max + 200;
         cx.in = region_new(biggest);
 #if VA_SHAPE == SHAPE_BYTES_BYTES
         cx.out = region_new(va_out_cap(biggest));
@@ -936,7 +996,7 @@ int main(int argc, char **argv) {
 #endif
 #endif
         uint64_t t0 = now_ns();
-        int failed = fuzz(&cx, seed, small_max, max_size, large_size, random_n);
+        int failed = fuzz(&cx, seed, small_max, max_size, large_size, random_n, sweep_max, window_max, big_windows);
         dprintf(1, "{\"ev\":\"check_done\",\"cand\":\"%s\",\"ok\":%s,\"cases\":%" PRIu64 ",\"seed\":%" PRIu64 ",\"ms\":%.1f}\n",
                 g.cand, failed ? "false" : "true", cx.cases, seed, (double)(now_ns() - t0) / 1e6);
         return failed ? 1 : 0;

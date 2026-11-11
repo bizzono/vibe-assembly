@@ -19,13 +19,13 @@ from typing import List, Optional, Tuple
 from . import __version__
 from .bench import BenchError, bench, render
 from .build import Builder
-from .gates import build_and_lint, call, check
+from .gates import build_and_lint, call, check, flavors
 from .agent import ClaudeCodeAgent, CommandAgent, ManualAgent, build_brief
 from .loop import install, judge, prepare_workdir, provenance, run_task
 from .newtask import scaffold
 from .target import UnsupportedTarget, describe_host, detect, host_target_name
 from .task import Task, TaskError, find_root, list_tasks, load_task
-from .util import ToolError, run
+from .util import ToolError, must, run
 
 WORK_MARKER = ".vibeasm-work.json"  # keep in sync with loop.WORK_MARKER
 
@@ -138,6 +138,7 @@ def cmd_show(args) -> int:
     print("target     %s (%s)" % (s.target.name, s.target.feature_baseline))
     print("baseline   %s" % s.builder.baseline_description())
     print("spec       %s" % task.spec_path)
+    print("flavors    %s" % ", ".join("%d=%s" % (i, n) for i, n in enumerate(flavors(s.builder, task))))
     print()
     print(task.spec_path.read_text().rstrip())
     return 0
@@ -205,6 +206,14 @@ def cmd_call(args) -> int:
         tmp.write(data)
         tmp.close()
         input_path = Path(tmp.name)
+    if args.gen is not None:
+        if not task.is_bytes:
+            raise UsageError("--gen makes byte inputs; this task takes integers (use --args)")
+        tmp = tempfile.NamedTemporaryFile(prefix="vibeasm-call-", suffix=".bin", delete=False)
+        tmp.close()
+        input_path = Path(tmp.name)
+        must([s.builder.driver(task), "gen", str(args.gen), str(args.flavor), str(args.seed), tmp.name],
+             what="generating an input (is the flavor number valid? see `vibeasm show %s`)" % task.name)
     try:
         out = call(s.builder, task, files[0], input_path=input_path, args=args.args)
     finally:
@@ -280,7 +289,8 @@ def cmd_run(args) -> int:
     for name in names:
         task = load_task(s.root, name)
         res = run_task(s.builder, task, agent, rounds=args.rounds, fresh=args.fresh,
-                       do_install=not args.no_install, stop_at_goal=not args.all_rounds)
+                       do_install=not args.no_install, stop_at_goal=not args.all_rounds,
+                       say=lambda text: print(text, flush=True), resume=args.resume)
         if not res.ok:
             print("\n%s: %s (run directory: %s)" % (task.name, res.message, res.run_dir))
             worst = 1
@@ -419,6 +429,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--input", help="file holding the input bytes")
     sp.add_argument("--text", help="input bytes as a string (C escapes like \\n \\x00 allowed)")
     sp.add_argument("--hex", help="input bytes in hex")
+    sp.add_argument("--gen", type=int, metavar="SIZE", help="make an input of SIZE bytes with the task's generator")
+    sp.add_argument("--flavor", type=int, default=0, help="generator flavor for --gen (see `vibeasm show`)")
+    sp.add_argument("--seed", type=int, default=1, help="generator seed for --gen")
     sp.add_argument("--args", help="integer arguments, comma separated (ints_to_u64 tasks)")
 
     sp = add("disasm", cmd_disasm, "disassemble a solution (or `baseline`: the compiler's assembly for ref.c)")
@@ -442,6 +455,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--budget", type=float, default=0.0, help="spending cap per round in USD, if the agent supports one")
     sp.add_argument("--timeout", type=int, default=60, help="minutes per round (default 60)")
     sp.add_argument("--fresh", action="store_true", help="ignore the installed solution instead of trying to beat it")
+    sp.add_argument("--resume", action="store_true", help="continue the most recent run of this task in its work directory")
     sp.add_argument("--no-install", action="store_true", help="do not write the winner to solutions/")
 
     sp = add("brief", cmd_brief, "print the brief an agent gets for a task (paste it into any chat model)")

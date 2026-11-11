@@ -18,8 +18,9 @@ task.json:
       "forbid_constants": [14200],        optional: numbers that may not appear in a solution
                                           (answers a solution must compute, not look up)
       "fuzz": {"small_max": 160, "timeout": 5,
-               "quick": {"random": 1500, "max_size": 40000, "large_size": 1500000},
-               "full":  {"random": 8000, "max_size": 200000, "large_size": 3145741}},
+               "quick": {"random": 1500, "max_size": 40000, "large_size": 1500000, "sweep_max": 4300},
+               "full":  {"random": 8000, "max_size": 200000, "large_size": 3145741, "sweep_max": 17000}},
+                                          (every length up to sweep_max is tested with every flavor)
       "bench": [{"name": "1 KiB", "size": 1024, "flavor": 0}, ...]
                ints_to_u64: [{"name": "n=12", "args": [12]}]
     }
@@ -35,8 +36,10 @@ SHAPES = {"bytes_to_u64": 1, "bytes_to_bytes": 2, "ints_to_u64": 3}
 
 DEFAULT_FUZZ = {
     "bytes": {
-        "quick": {"random": 1500, "max_size": 40000, "large_size": 1500007},
-        "full": {"random": 8000, "max_size": 200000, "large_size": 3145741},
+        "quick": {"random": 1500, "max_size": 40000, "large_size": 1500007,
+                  "sweep_max": 4300, "window_max": 17000, "big_windows": 0},
+        "full": {"random": 8000, "max_size": 200000, "large_size": 3145741,
+                 "sweep_max": 17000, "window_max": 140000, "big_windows": 1},
     },
     "ints": {
         "quick": {"random": 400},
