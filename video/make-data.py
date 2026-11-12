@@ -121,14 +121,11 @@ def add_extended_data(data):
         for r in rows
     ]
     # Flatten 24 half-block rows (each has top/bottom RGB) into 48 pixel rows of 72 "#rrggbb" strings
-    half_rows = make_visuals.capture_mandelbrot_grid()
-    pixel_rows = []
-    for hr in half_rows:
-        top_row = ["#%02x%02x%02x" % (r1, g1, b1) for (r1, g1, b1, _, _, _) in hr]
-        bot_row = ["#%02x%02x%02x" % (r2, g2, b2) for (_, _, _, r2, g2, b2) in hr]
-        pixel_rows.append(top_row)
-        pixel_rows.append(bot_row)
-    data["mandelbrot"] = pixel_rows
+    data["mandelbrot"] = make_visuals.flatten_half_rows(make_visuals.capture_asm_grid("standalone_mandelbrot.s"))
+    data["doom"] = make_visuals.flatten_half_rows(make_visuals.capture_asm_grid("doom_raycaster.s"))
+    data["snake"] = make_visuals.flatten_half_rows(make_visuals.capture_asm_grid("snake_ai.s"))
+    data["nbody"] = make_visuals.flatten_half_rows(make_visuals.capture_asm_grid("nbody_sim.s"))
+    data["software_benches"] = make_visuals.build_software_benchmarks()
 
 
 if __name__ == "__main__":

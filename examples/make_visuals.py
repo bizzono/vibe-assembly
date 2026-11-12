@@ -22,11 +22,11 @@ ANSI_PAIR_RE = re.compile(
 )
 
 
-def capture_mandelbrot_grid():
-    """Compile examples/standalone_mandelbrot.s, run it, and parse its 24-bit ANSI pixels."""
-    src = ROOT / "examples" / "standalone_mandelbrot.s"
+def capture_asm_grid(filename="standalone_mandelbrot.s"):
+    """Compile examples/<filename>, run it, and parse its 24-bit ANSI pixels."""
+    src = ROOT / "examples" / filename
     with tempfile.TemporaryDirectory() as tmp:
-        exe = Path(tmp) / "mandelbrot_app"
+        exe = Path(tmp) / "asm_app"
         subprocess.run(["clang", str(src), "-o", str(exe)], check=True)
         proc = subprocess.run([str(exe)], capture_output=True, text=True, check=True)
     rows = []
@@ -36,6 +36,20 @@ def capture_mandelbrot_grid():
             rows.append([(int(r1), int(g1), int(b1), int(r2), int(g2), int(b2)) for r1, g1, b1, r2, g2, b2 in matches])
     assert len(rows) == 24 and len(rows[0]) == 72, f"unexpected grid shape: {len(rows)}x{len(rows[0]) if rows else 0}"
     return rows
+
+
+def capture_mandelbrot_grid():
+    return capture_asm_grid("standalone_mandelbrot.s")
+
+
+def flatten_half_rows(half_rows):
+    """Convert 24 half-block rows into 48 pixel rows of 72 '#rrggbb' strings."""
+    pixel_rows = []
+    for hr in half_rows:
+        pixel_rows.append(["#%02x%02x%02x" % (r1, g1, b1) for (r1, g1, b1, _, _, _) in hr])
+        pixel_rows.append(["#%02x%02x%02x" % (r2, g2, b2) for (_, _, _, r2, g2, b2) in hr])
+    return pixel_rows
+
 
 
 def render_standalone_mandelbrot_svg(rows):
@@ -218,6 +232,448 @@ def render_oneshot_walkthrough_svg():
     dest = MEDIA / "oneshot-walkthrough.svg"
     dest.write_text("\n".join(out))
     print(f"wrote {dest.relative_to(ROOT)}")
+
+
+C_BENCH_SRC = r"""
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+static double now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
+}
+
+static const uint8_t MAP[256] = {
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,0,0,2,0,0,4,0,0,4,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,0,0,2,0,0,4,0,0,4,0,0,1,
+    1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,1,
+    1,2,2,0,2,2,2,0,0,2,3,3,2,0,0,1,
+    1,0,0,0,0,0,0,0,0,2,0,0,2,0,0,1,
+    1,0,4,0,0,4,0,0,0,3,0,0,2,0,0,1,
+    1,0,0,0,0,0,0,0,0,2,0,0,2,0,0,1,
+    1,0,4,0,0,4,0,0,0,2,2,2,2,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,0,2,3,2,0,0,4,0,0,4,0,0,0,1,
+    1,0,0,2,0,2,0,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+};
+
+__attribute__((noinline))
+double bench_doom_c(int frames) {
+    double t0 = now_ms();
+    volatile uint64_t acc = 0;
+    double posX = 3.5, posY = 3.5, dirX = 0.84, dirY = 0.54, planeX = -0.36, planeY = 0.55;
+    for (int f = 0; f < frames; f++) {
+        uint64_t s = 0;
+        for (int col = 0; col < 72; col++) {
+            for (int row = 0; row < 48; row++) {
+                double camX = 2.0 * col / 72.0 - 1.0 + 1e-9 * f;
+                double rdx = dirX + planeX * camX;
+                double rdy = dirY + planeY * camX;
+                int mx = (int)posX, my = (int)posY;
+                double ddx = fabs(1.0 / rdx), ddy = fabs(1.0 / rdy);
+                int sx = rdx < 0 ? -1 : 1, sy = rdy < 0 ? -1 : 1;
+                double sdx = rdx < 0 ? (posX - mx) * ddx : (mx + 1.0 - posX) * ddx;
+                double sdy = rdy < 0 ? (posY - my) * ddy : (my + 1.0 - posY) * ddy;
+                int side = 0, hit = 0;
+                for (int step = 0; step < 32; step++) {
+                    if (sdx < sdy) { sdx += ddx; mx = (mx + sx) & 15; side = 0; }
+                    else { sdy += ddy; my = (my + sy) & 15; side = 1; }
+                    hit = MAP[(my << 4) + mx];
+                    if (hit) break;
+                }
+                double dist = side == 0 ? (sdx - ddx) : (sdy - ddy);
+                int lh = (int)(44.0 / dist);
+                int atten = (int)(256.0 / (1.0 + 0.14 * dist));
+                if (row >= 24 - lh / 2 && row < 24 + lh / 2) s += (uint64_t)(hit * atten);
+            }
+        }
+        acc += s;
+    }
+    return now_ms() - t0;
+}
+
+__attribute__((noinline))
+double bench_snake_c(int ticks) {
+    double t0 = now_ms();
+    uint8_t board[864];
+    memset(board, 0, sizeof(board));
+    int hx = 18, hy = 12, ax = 28, ay = 7;
+    uint32_t seed = 0x24681357u;
+    volatile uint64_t score = 0;
+    const int dx[4] = {1, -1, 0, 0};
+    const int dy[4] = {0, 0, 1, -1};
+    for (int t = 0; t < ticks; t++) {
+        int best_d = 999, bx = hx, by = hy;
+        for (int dir = 0; dir < 4; dir++) {
+            int nx = hx + dx[dir], ny = hy + dy[dir];
+            if (nx < 1 || nx > 34 || ny < 1 || ny > 22) continue;
+            int penalty = board[ny * 36 + nx] ? 4 : 0;
+            int d = abs(nx - ax) + abs(ny - ay) + penalty;
+            if (d < best_d) { best_d = d; bx = nx; by = ny; }
+        }
+        hx = bx; hy = by;
+        board[hy * 36 + hx] = (uint8_t)((t & 63) + 1);
+        if (hx == ax && hy == ay) {
+            score++;
+            seed = seed * 1664525u + 1013904223u;
+            ax = 2 + ((seed >> 16) % 32);
+            ay = 2 + ((seed >> 24) % 20);
+        }
+    }
+    return now_ms() - t0;
+}
+
+__attribute__((noinline))
+double bench_nbody_c(int steps) {
+    double t0 = now_ms();
+    double x[64], y[64], vx[64], vy[64];
+    for (int i = 0; i < 64; i++) {
+        x[i] = (double)i; y[i] = 0.5 * i; vx[i] = 0.125; vy[i] = -0.125;
+    }
+    for (int s = 0; s < steps; s++) {
+        for (int i = 0; i < 64; i++) {
+            double xi = x[i], yi = y[i], vxi = vx[i], vyi = vy[i];
+            for (int j = 0; j < 64; j++) {
+                double dx = x[j] - xi, dy = y[j] - yi;
+                double r2 = dx * dx + dy * dy + 0.25;
+                double r = sqrt(r2);
+                double f = 0.01 / (r2 * r);
+                vxi += dx * f; vyi += dy * f;
+            }
+            x[i] = xi + vxi * 0.01; y[i] = yi + vyi * 0.01;
+            vx[i] = vxi; vy[i] = vyi;
+        }
+    }
+    volatile double sink = x[0] + y[0];
+    (void)sink;
+    return now_ms() - t0;
+}
+
+int main(void) {
+    printf("%.3f %.3f %.3f\n", bench_doom_c(10000), bench_snake_c(1000000), bench_nbody_c(10000));
+    return 0;
+}
+"""
+
+
+def measure_asm_bench(filename: str) -> float:
+    import time
+    src = ROOT / "examples" / filename
+    with tempfile.TemporaryDirectory() as tmp:
+        exe = Path(tmp) / "asm_bench"
+        subprocess.run(["clang", str(src), "-o", str(exe)], check=True)
+        # Warm up
+        subprocess.run([str(exe), "--bench"], capture_output=True, check=True)
+        best = 1e9
+        for _ in range(5):
+            t0 = time.perf_counter()
+            subprocess.run([str(exe), "--bench"], capture_output=True, check=True)
+            dt = (time.perf_counter() - t0) * 1000.0
+            if dt < best:
+                best = dt
+    return round(best, 2)
+
+
+JS_BENCH_SRC = r"""
+const { performance } = require("perf_hooks");
+const MAP = new Uint8Array([
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+  1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,1,
+  1,0,0,0,0,0,2,0,0,4,0,0,4,0,0,1,
+  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+  1,0,0,0,0,0,2,0,0,4,0,0,4,0,0,1,
+  1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,1,
+  1,2,2,0,2,2,2,0,0,2,3,3,2,0,0,1,
+  1,0,0,0,0,0,0,0,0,2,0,0,2,0,0,1,
+  1,0,4,0,0,4,0,0,0,3,0,0,2,0,0,1,
+  1,0,0,0,0,0,0,0,0,2,0,0,2,0,0,1,
+  1,0,4,0,0,4,0,0,0,2,2,2,2,0,0,1,
+  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+  1,0,0,2,3,2,0,0,4,0,0,4,0,0,0,1,
+  1,0,0,2,0,2,0,0,0,0,0,0,0,0,0,1,
+  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+]);
+function benchDoom(frames) {
+  const t0 = performance.now();
+  let acc = 0;
+  const posX = 3.5, posY = 3.5, dirX = 0.84, dirY = 0.54, planeX = -0.36, planeY = 0.55;
+  for (let f = 0; f < frames; f++) {
+    for (let col = 0; col < 72; col++) {
+      for (let row = 0; row < 48; row++) {
+        const camX = 2.0 * col / 72.0 - 1.0 + 1e-9 * f;
+        const rdx = dirX + planeX * camX, rdy = dirY + planeY * camX;
+        let mx = posX | 0, my = posY | 0;
+        const ddx = Math.abs(1.0 / rdx), ddy = Math.abs(1.0 / rdy);
+        const sx = rdx < 0 ? -1 : 1, sy = rdy < 0 ? -1 : 1;
+        let sdx = rdx < 0 ? (posX - mx) * ddx : (mx + 1.0 - posX) * ddx;
+        let sdy = rdy < 0 ? (posY - my) * ddy : (my + 1.0 - posY) * ddy;
+        let side = 0, hit = 0;
+        for (let step = 0; step < 32; step++) {
+          if (sdx < sdy) { sdx += ddx; mx = (mx + sx) & 15; side = 0; }
+          else { sdy += ddy; my = (my + sy) & 15; side = 1; }
+          hit = MAP[(my << 4) + mx];
+          if (hit) break;
+        }
+        const dist = side === 0 ? (sdx - ddx) : (sdy - ddy);
+        const lh = (44.0 / dist) | 0;
+        const atten = (256.0 / (1.0 + 0.14 * dist)) | 0;
+        if (row >= 24 - (lh >> 1) && row < 24 + (lh >> 1)) acc += hit * atten;
+      }
+    }
+  }
+  if (acc === -1) console.log(acc);
+  return (performance.now() - t0) * (10000 / frames);
+}
+function benchSnake(ticks) {
+  const t0 = performance.now();
+  const board = new Uint8Array(864);
+  let hx = 18, hy = 12, ax = 28, ay = 7, seed = 0x24681357 >>> 0, score = 0;
+  const dx = [1, -1, 0, 0], dy = [0, 0, 1, -1];
+  for (let t = 0; t < ticks; t++) {
+    let bestD = 999, bx = hx, by = hy;
+    for (let dir = 0; dir < 4; dir++) {
+      const nx = hx + dx[dir], ny = hy + dy[dir];
+      if (nx < 1 || nx > 34 || ny < 1 || ny > 22) continue;
+      const pen = board[ny * 36 + nx] ? 4 : 0;
+      const d = Math.abs(nx - ax) + Math.abs(ny - ay) + pen;
+      if (d < bestD) { bestD = d; bx = nx; by = ny; }
+    }
+    hx = bx; hy = by;
+    board[hy * 36 + hx] = (t & 63) + 1;
+    if (hx === ax && hy === ay) {
+      score++;
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      ax = 2 + ((seed >>> 16) % 32);
+      ay = 2 + ((seed >>> 24) % 20);
+    }
+  }
+  if (score === -1) console.log(score);
+  return performance.now() - t0;
+}
+function benchNbody(steps) {
+  const t0 = performance.now();
+  const x = new Float64Array(64), y = new Float64Array(64), vx = new Float64Array(64), vy = new Float64Array(64);
+  for (let i = 0; i < 64; i++) { x[i] = i; y[i] = 0.5 * i; vx[i] = 0.125; vy[i] = -0.125; }
+  for (let s = 0; s < steps; s++) {
+    for (let i = 0; i < 64; i++) {
+      let xi = x[i], yi = y[i], vxi = vx[i], vyi = vy[i];
+      for (let j = 0; j < 64; j++) {
+        const dx = x[j] - xi, dy = y[j] - yi;
+        const r2 = dx * dx + dy * dy + 0.25;
+        const f = 0.01 / (r2 * Math.sqrt(r2));
+        vxi += dx * f; vyi += dy * f;
+      }
+      x[i] = xi + vxi * 0.01; y[i] = yi + vyi * 0.01; vx[i] = vxi; vy[i] = vyi;
+    }
+  }
+  if (x[0] === -1e9) console.log(x[0]);
+  return performance.now() - t0;
+}
+benchDoom(200); benchSnake(50000); benchNbody(500);
+console.log(benchDoom(2000).toFixed(2), benchSnake(1000000).toFixed(2), benchNbody(10000).toFixed(2));
+"""
+
+
+def measure_py_benches():
+    import math
+    import time
+
+    # 1. DOOM raycaster in Python (scaled from 50 frames -> 10,000 frames)
+    mp = [
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,1,
+        1,0,0,0,0,0,2,0,0,4,0,0,4,0,0,1,
+        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+        1,0,0,0,0,0,2,0,0,4,0,0,4,0,0,1,
+        1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,1,
+        1,2,2,0,2,2,2,0,0,2,3,3,2,0,0,1,
+        1,0,0,0,0,0,0,0,0,2,0,0,2,0,0,1,
+        1,0,4,0,0,4,0,0,0,3,0,0,2,0,0,1,
+        1,0,0,0,0,0,0,0,0,2,0,0,2,0,0,1,
+        1,0,4,0,0,4,0,0,0,2,2,2,2,0,0,1,
+        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+        1,0,0,2,3,2,0,0,4,0,0,4,0,0,0,1,
+        1,0,0,2,0,2,0,0,0,0,0,0,0,0,0,1,
+        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    ]
+    t0 = time.perf_counter()
+    acc = 0
+    for f in range(25):
+        for col in range(72):
+            for row in range(48):
+                camX = 2.0 * col / 72.0 - 1.0
+                rdx = 0.84 - 0.36 * camX
+                rdy = 0.54 + 0.55 * camX
+                mx, my = 3, 3
+                ddx, ddy = abs(1.0 / rdx), abs(1.0 / rdy)
+                sx = -1 if rdx < 0 else 1
+                sy = -1 if rdy < 0 else 1
+                sdx = (3.5 - mx) * ddx if rdx < 0 else (mx + 1.0 - 3.5) * ddx
+                sdy = (3.5 - my) * ddy if rdy < 0 else (my + 1.0 - 3.5) * ddy
+                side = 0
+                hit = 0
+                for _ in range(16):
+                    if sdx < sdy:
+                        sdx += ddx
+                        mx = (mx + sx) & 15
+                        side = 0
+                    else:
+                        sdy += ddy
+                        my = (my + sy) & 15
+                        side = 1
+                    hit = mp[(my << 4) + mx]
+                    if hit:
+                        break
+                dist = (sdx - ddx) if side == 0 else (sdy - ddy)
+                lh = int(44.0 / dist)
+                if 24 - (lh >> 1) <= row < 24 + (lh >> 1):
+                    acc += hit
+    doom_py_ms = round((time.perf_counter() - t0) * 1000.0 * (10000.0 / 25.0), 1)
+
+    # 2. Snake AI in Python (scaled from 25,000 ticks -> 1,000,000 ticks)
+    t0 = time.perf_counter()
+    board = [0] * 864
+    hx, hy, ax, ay = 18, 12, 28, 7
+    seed = 0x24681357
+    dirs = ((1, 0), (-1, 0), (0, 1), (0, -1))
+    for t in range(25000):
+        best_d = 999
+        bx, by = hx, hy
+        for dx, dy in dirs:
+            nx, ny = hx + dx, hy + dy
+            if 1 <= nx <= 34 and 1 <= ny <= 22:
+                d = abs(nx - ax) + abs(ny - ay) + (4 if board[ny * 36 + nx] else 0)
+                if d < best_d:
+                    best_d, bx, by = d, nx, ny
+        hx, hy = bx, by
+        board[hy * 36 + hx] = (t & 63) + 1
+        if hx == ax and hy == ay:
+            seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF
+            ax = 2 + ((seed >> 16) % 32)
+            ay = 2 + ((seed >> 24) % 20)
+    snake_py_ms = round((time.perf_counter() - t0) * 1000.0 * (1000000.0 / 25000.0), 1)
+
+    # 3. N-Body in Python (scaled from 100 steps -> 10,000 steps)
+    t0 = time.perf_counter()
+    x = [float(i) for i in range(64)]
+    y = [0.5 * i for i in range(64)]
+    vx = [0.125] * 64
+    vy = [-0.125] * 64
+    for _ in range(100):
+        for i in range(64):
+            xi, yi, vxi, vyi = x[i], y[i], vx[i], vy[i]
+            for j in range(64):
+                dx = x[j] - xi
+                dy = y[j] - yi
+                r2 = dx * dx + dy * dy + 0.25
+                f = 0.01 / (r2 * math.sqrt(r2))
+                vxi += dx * f
+                vyi += dy * f
+            x[i] = xi + vxi * 0.01
+            y[i] = yi + vyi * 0.01
+            vx[i] = vxi
+            vy[i] = vyi
+    nbody_py_ms = round((time.perf_counter() - t0) * 1000.0 * (10000.0 / 100.0), 1)
+    return doom_py_ms, snake_py_ms, nbody_py_ms
+
+
+def build_software_benchmarks():
+    doom_asm_ms = measure_asm_bench("doom_raycaster.s")
+    snake_asm_ms = measure_asm_bench("snake_ai.s")
+    nbody_asm_ms = measure_asm_bench("nbody_sim.s")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        c_file = Path(tmp) / "bench.c"
+        c_exe = Path(tmp) / "bench"
+        c_file.write_text(C_BENCH_SRC)
+        subprocess.run(["clang", "-O3", str(c_file), "-lm", "-o", str(c_exe)], check=True)
+        out = subprocess.run([str(c_exe)], capture_output=True, text=True, check=True).stdout.strip().split()
+        doom_c_ms, snake_c_ms, nbody_c_ms = [round(float(v), 2) for v in out]
+
+        js_file = Path(tmp) / "bench.js"
+        js_file.write_text(JS_BENCH_SRC)
+        js_out = subprocess.run(["node", str(js_file)], capture_output=True, text=True, check=True).stdout.strip().split()
+        doom_js_ms, snake_js_ms, nbody_js_ms = [round(float(v), 1) for v in js_out]
+
+    doom_py_ms, snake_py_ms, nbody_py_ms = measure_py_benches()
+
+    # Pull Mandelbrot 512x512 from shootout/results/results.json
+    import json
+    res = json.loads((ROOT / "shootout" / "results" / "results.json").read_text())
+    m_ent = res["kernels"]["mandelbrot"]["entries"]
+    m_asm_ms = round(m_ent["asm"]["best_ns"] / 1e6, 2)
+    m_c_ms = round(m_ent["c"]["best_ns"] / 1e6, 2)
+    m_js_ms = round(m_ent["js"]["best_ns"] / 1e6, 2)
+    m_py_ms = round(m_ent["python"]["best_ns"] / 1e6, 1)
+
+    apps = [
+        {
+            "id": "doom",
+            "title": "3D DOOM / Wolf3D Raycaster",
+            "subtitle": "10,000 full 3D frames (72x48 DDA + torch lighting)",
+            "file": "examples/doom_raycaster.s",
+            "metric": "FPS",
+            "asm_ms": doom_asm_ms,
+            "c_ms": doom_c_ms,
+            "js_ms": doom_js_ms,
+            "py_ms": doom_py_ms,
+            "vs_c": round(doom_c_ms / doom_asm_ms, 2),
+            "vs_py": round(doom_py_ms / doom_asm_ms, 1),
+        },
+        {
+            "id": "snake",
+            "title": "Autonomous Snake AI Engine",
+            "subtitle": "1,000,000 pathfinding + collision game ticks",
+            "file": "examples/snake_ai.s",
+            "metric": "M ticks/s",
+            "asm_ms": snake_asm_ms,
+            "c_ms": snake_c_ms,
+            "js_ms": snake_js_ms,
+            "py_ms": snake_py_ms,
+            "vs_c": round(snake_c_ms / snake_asm_ms, 2),
+            "vs_py": round(snake_py_ms / snake_asm_ms, 1),
+        },
+        {
+            "id": "nbody",
+            "title": "N-Body Galaxy Collision Sim",
+            "subtitle": "10,000 steps of 64-body O(N^2) gravity (40.96M pairs)",
+            "file": "examples/nbody_sim.s",
+            "metric": "M pairs/s",
+            "asm_ms": nbody_asm_ms,
+            "c_ms": nbody_c_ms,
+            "js_ms": nbody_js_ms,
+            "py_ms": nbody_py_ms,
+            "vs_c": round(nbody_c_ms / nbody_asm_ms, 2),
+            "vs_py": round(nbody_py_ms / nbody_asm_ms, 1),
+        },
+        {
+            "id": "mandelbrot",
+            "title": "Mandelbrot Fractal Renderer",
+            "subtitle": "512x512 IEEE-754 grid (200 max iterations)",
+            "file": "examples/standalone_mandelbrot.s",
+            "metric": "FPS",
+            "asm_ms": m_asm_ms,
+            "c_ms": m_c_ms,
+            "js_ms": m_js_ms,
+            "py_ms": m_py_ms,
+            "vs_c": round(m_c_ms / m_asm_ms, 2),
+            "vs_py": round(m_py_ms / m_asm_ms, 1),
+        },
+    ]
+    return apps
+
 
 
 if __name__ == "__main__":

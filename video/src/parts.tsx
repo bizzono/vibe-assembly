@@ -10,10 +10,10 @@ export const hand = loadHand("normal", { weights: ["400"], subsets: ["latin"] })
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
 /** How far the paper has been fed, in pixels. */
-export const usePaperY = (): number => {
+export const usePaperY = (pages: number = PAGE_AT.length): number => {
   const f = useCurrentFrame();
   let y = 0;
-  for (let i = 1; i < PAGE_AT.length; i++) {
+  for (let i = 1; i < Math.min(pages, PAGE_AT.length); i++) {
     y += interpolate(f, [PAGE_AT[i] - FEED, PAGE_AT[i]], [0, T.H], { ...clamp, easing: Easing.inOut(Easing.cubic) });
   }
   return y;
@@ -21,7 +21,7 @@ export const usePaperY = (): number => {
 
 /** The continuous sheet: green bars, tractor-feed holes, a perforation between pages. */
 export const Sheet: React.FC<{ pages: number; children: React.ReactNode }> = ({ pages, children }) => {
-  const y = usePaperY();
+  const y = usePaperY(pages);
   const bands = [];
   for (let i = 1; i < (pages * T.H) / T.BAND; i += 2) {
     bands.push(<div key={i} style={{ position: "absolute", left: 0, top: i * T.BAND, width: T.W, height: T.BAND, background: T.band }} />);
