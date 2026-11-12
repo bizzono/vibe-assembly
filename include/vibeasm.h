@@ -34,6 +34,11 @@ extern "C" {
 #endif
 
 /**
+ * Return the vibe-assembly library version string (e.g. "0.1.0").
+ */
+const char *vibeasm_version(void);
+
+/**
  * Count ASCII whitespace-separated words in `buf` of length `len` bytes.
  *
  * Whitespace is defined as ASCII space (0x20) and control characters 0x09..0x0d

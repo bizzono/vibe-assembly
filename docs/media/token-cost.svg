@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" width="960" height="480">
+<defs>
+  <style>
+    .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+    .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  </style>
+</defs>
+<rect width="960" height="480" rx="12" fill="#fbfaf5" stroke="#d5ceb8" stroke-width="1.5"/>
+<rect x="1" y="1" width="958" height="52" rx="11" fill="#e5eedf"/>
+<line x1="1" y1="53" x2="959" y2="53" stroke="#c3d1b8" stroke-width="1"/>
+<text x="24" y="26" fill="#1d2b1f" font-size="14" font-weight="700" class="mono">TOKEN COST vs. RUNTIME SPEED :: ALL 6 KERNELS ACROSS 12 LANGUAGES</text>
+<text x="24" y="44" fill="#3d5240" font-size="11.5" class="sans">Assembly takes ~4.6x more code tokens ($0.17 vs $0.04 one-shot) — and runs 14.2x to 582.6x faster on every call</text>
+<text x="936" y="34" text-anchor="end" fill="#2e6b34" font-size="12" font-weight="700" class="mono">+$0.13 TOKENS = 14.5x–583x SPEEDUP</text>
+<text x="24" y="80" fill="#555" font-size="11" font-weight="700" class="mono">LANGUAGE</text>
+<text x="145" y="80" fill="#555" font-size="11" font-weight="700" class="mono">LOC</text>
+<text x="200" y="80" fill="#555" font-size="11" font-weight="700" class="mono">CODE TOKENS (6 KERNELS)</text>
+<text x="515" y="80" fill="#555" font-size="11" font-weight="700" class="mono">1-SHOT API</text>
+<text x="615" y="80" fill="#555" font-size="11" font-weight="700" class="mono">RUNTIME (ALL 6 KERNELS, LOWER IS BETTER)</text>
+<line x1="20" y1="88" x2="940" y2="88" stroke="#d5ceb8" stroke-width="1"/>
+<rect x="16" y="96" width="928" height="24" rx="4" fill="#e5eedf" stroke="#b9d4b0"/>
+<text x="24" y="112" fill="#1e5624" font-size="12" font-weight="700" class="mono">Assembly</text>
+<text x="175" y="112" text-anchor="end" fill="#444" font-size="11.5" class="mono">1,223</text>
+<rect x="200" y="101" width="200" height="13" rx="3" fill="#2e6b34"/>
+<text x="408" y="112" fill="#1e5624" font-size="11" font-weight="700" class="mono">10,740 tok</text>
+<text x="580" y="112" text-anchor="end" fill="#1e5624" font-size="11.5" font-weight="700" class="mono">$0.172</text>
+<rect x="615" y="101" width="12" height="13" rx="3" fill="#2ea043"/>
+<text x="936" y="112" text-anchor="end" fill="#1e5624" font-size="11" font-weight="700" class="mono">5.2 ms (1.0x)</text>
+<rect x="16" y="124" width="928" height="24" rx="4" fill="#f4f2ea"/>
+<text x="24" y="140" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">Rust</text>
+<text x="175" y="140" text-anchor="end" fill="#444" font-size="11.5" class="mono">252</text>
+<rect x="200" y="129" width="47" height="13" rx="3" fill="#8c959f"/>
+<text x="255" y="140" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">2,528 tok</text>
+<text x="580" y="140" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.049</text>
+<rect x="615" y="129" width="84" height="13" rx="3" fill="#d97706"/>
+<text x="936" y="140" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">55.7 ms (14.2x)</text>
+<text x="24" y="168" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">C++</text>
+<text x="175" y="168" text-anchor="end" fill="#444" font-size="11.5" class="mono">241</text>
+<rect x="200" y="157" width="55" height="13" rx="3" fill="#8c959f"/>
+<text x="263" y="168" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">2,955 tok</text>
+<text x="580" y="168" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.055</text>
+<rect x="615" y="157" width="84" height="13" rx="3" fill="#d97706"/>
+<text x="936" y="168" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">55.8 ms (14.4x)</text>
+<rect x="16" y="180" width="928" height="24" rx="4" fill="#f4f2ea"/>
+<text x="24" y="196" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">C</text>
+<text x="175" y="196" text-anchor="end" fill="#444" font-size="11.5" class="mono">182</text>
+<rect x="200" y="185" width="43" height="13" rx="3" fill="#8c959f"/>
+<text x="251" y="196" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">2,350 tok</text>
+<text x="580" y="196" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.046</text>
+<rect x="615" y="185" width="85" height="13" rx="3" fill="#d97706"/>
+<text x="936" y="196" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">56.4 ms (14.5x)</text>
+<text x="24" y="224" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">Zig</text>
+<text x="175" y="224" text-anchor="end" fill="#444" font-size="11.5" class="mono">214</text>
+<rect x="200" y="213" width="43" height="13" rx="3" fill="#8c959f"/>
+<text x="251" y="224" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">2,312 tok</text>
+<text x="580" y="224" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.045</text>
+<rect x="615" y="213" width="87" height="13" rx="3" fill="#d97706"/>
+<text x="936" y="224" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">57.2 ms (15.7x)</text>
+<rect x="16" y="236" width="928" height="24" rx="4" fill="#f4f2ea"/>
+<text x="24" y="252" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">Swift</text>
+<text x="175" y="252" text-anchor="end" fill="#444" font-size="11.5" class="mono">253</text>
+<rect x="200" y="241" width="56" height="13" rx="3" fill="#8c959f"/>
+<text x="264" y="252" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">3,034 tok</text>
+<text x="580" y="252" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.056</text>
+<rect x="615" y="241" width="94" height="13" rx="3" fill="#d97706"/>
+<text x="936" y="252" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">67.4 ms (20.2x)</text>
+<text x="24" y="280" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">Go</text>
+<text x="175" y="280" text-anchor="end" fill="#444" font-size="11.5" class="mono">233</text>
+<rect x="200" y="269" width="38" height="13" rx="3" fill="#8c959f"/>
+<text x="246" y="280" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">2,070 tok</text>
+<text x="580" y="280" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.042</text>
+<rect x="615" y="269" width="94" height="13" rx="3" fill="#d97706"/>
+<text x="936" y="280" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">66.1 ms (20.2x)</text>
+<rect x="16" y="292" width="928" height="24" rx="4" fill="#f4f2ea"/>
+<text x="24" y="308" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">C#</text>
+<text x="175" y="308" text-anchor="end" fill="#444" font-size="11.5" class="mono">240</text>
+<rect x="200" y="297" width="40" height="13" rx="3" fill="#8c959f"/>
+<text x="248" y="308" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">2,183 tok</text>
+<text x="580" y="308" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.044</text>
+<rect x="615" y="297" width="94" height="13" rx="3" fill="#d97706"/>
+<text x="936" y="308" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">66.0 ms (20.7x)</text>
+<text x="24" y="336" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">Java</text>
+<text x="175" y="336" text-anchor="end" fill="#444" font-size="11.5" class="mono">215</text>
+<rect x="200" y="325" width="42" height="13" rx="3" fill="#8c959f"/>
+<text x="250" y="336" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">2,292 tok</text>
+<text x="580" y="336" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.045</text>
+<rect x="615" y="325" width="95" height="13" rx="3" fill="#d97706"/>
+<text x="936" y="336" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">67.6 ms (21.1x)</text>
+<rect x="16" y="348" width="928" height="24" rx="4" fill="#f4f2ea"/>
+<text x="24" y="364" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">JavaScript</text>
+<text x="175" y="364" text-anchor="end" fill="#444" font-size="11.5" class="mono">214</text>
+<rect x="200" y="353" width="41" height="13" rx="3" fill="#8c959f"/>
+<text x="249" y="364" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">2,242 tok</text>
+<text x="580" y="364" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.044</text>
+<rect x="615" y="353" width="101" height="13" rx="3" fill="#d97706"/>
+<text x="936" y="364" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">73.2 ms (26.3x)</text>
+<text x="24" y="392" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">Ruby</text>
+<text x="175" y="392" text-anchor="end" fill="#444" font-size="11.5" class="mono">221</text>
+<rect x="200" y="381" width="31" height="13" rx="3" fill="#8c959f"/>
+<text x="239" y="392" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">1,716 tok</text>
+<text x="580" y="392" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.037</text>
+<rect x="615" y="381" width="176" height="13" rx="3" fill="#cf222e"/>
+<text x="936" y="392" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">1846.8 ms (413.6x)</text>
+<rect x="16" y="404" width="928" height="24" rx="4" fill="#f4f2ea"/>
+<text x="24" y="420" fill="#1b1b1b" font-size="12" font-weight="500" class="mono">Python</text>
+<text x="175" y="420" text-anchor="end" fill="#444" font-size="11.5" class="mono">173</text>
+<rect x="200" y="409" width="31" height="13" rx="3" fill="#8c959f"/>
+<text x="239" y="420" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">1,716 tok</text>
+<text x="580" y="420" text-anchor="end" fill="#1b1b1b" font-size="11.5" font-weight="500" class="mono">$0.037</text>
+<rect x="615" y="409" width="186" height="13" rx="3" fill="#cf222e"/>
+<text x="936" y="420" text-anchor="end" fill="#1b1b1b" font-size="11" font-weight="500" class="mono">1689.5 ms (582.6x)</text>
+<line x1="20" y1="438" x2="940" y2="438" stroke="#d5ceb8" stroke-width="1"/>
+<text x="24" y="458" fill="#444" font-size="11" class="sans">1-Shot API cost at $3/1M input + $15/1M output tokens. Full multi-round agentic verification across all 6 tasks cost $14.52 total ($1.33–$4.80/task).</text>
+</svg>

@@ -61,3 +61,22 @@ Wall time of one whole process that runs the kernel once: start-up, reading the 
 
 Every entry printed the same result as the C reference for every kernel, or it is marked `wrong`.
 Rules and method: [PROTOCOL.md](../PROTOCOL.md).
+
+## Token cost & source footprint across all 12 languages
+
+Measured by `python3 shootout/tokens.py` across all 72 implementation files (`solutions/arm64-darwin/*.s`, `tasks/*/ref.c`, and `shootout/langs/*`):
+
+| language | LOC (6 kernels) | bytes | code tokens | 1-shot API ($3/$15 per 1M) | full verified agent loop | warm batch (all 6 kernels) | geomean vs asm |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **Assembly** | 1,223 | 36,585 B | 10,740 | $0.172 | $14.52 | 5.2 ms | 1.0x |
+| **Rust** | 252 | 8,541 B | 2,528 | $0.049 | — | 55.7 ms | 14.2x |
+| **C++** | 241 | 9,620 B | 2,955 | $0.055 | — | 55.8 ms | 14.4x |
+| **C** | 182 | 8,725 B | 2,350 | $0.046 | — | 56.4 ms | 14.5x |
+| **Zig** | 214 | 7,246 B | 2,312 | $0.045 | — | 57.2 ms | 15.7x |
+| **Swift** | 253 | 11,425 B | 3,034 | $0.056 | — | 67.4 ms | 20.2x |
+| **Go** | 233 | 6,216 B | 2,070 | $0.042 | — | 66.1 ms | 20.2x |
+| **C#** | 240 | 8,305 B | 2,183 | $0.044 | — | 66.0 ms | 20.7x |
+| **Java** | 215 | 8,067 B | 2,292 | $0.045 | — | 67.6 ms | 21.1x |
+| **JavaScript** | 214 | 6,811 B | 2,242 | $0.044 | — | 73.2 ms | 26.3x |
+| **Ruby** | 221 | 6,329 B | 1,716 | $0.037 | — | 1,846.8 ms | 413.6x |
+| **Python** | 173 | 6,292 B | 1,716 | $0.037 | — | 1,689.5 ms | 582.6x |

@@ -53,7 +53,7 @@ ARM64_DARWIN = Target(
 ARM64_LINUX = Target(
     name="arm64-linux",
     cc="clang",
-    asm_flags=("-march=armv8.2-a+crc+crypto+dotprod+fp16", "-fPIC"),
+    asm_flags=("-mcpu=native", "-fPIC"),
     c_flags=("-std=c11", "-fPIC"),
     baseline_flags=("-O3", "-mcpu=native"),
     oracle_flags=("-O1",),
@@ -68,7 +68,7 @@ ARM64_LINUX = Target(
 X86_64_LINUX = Target(
     name="x86_64-linux",
     cc="clang",
-    asm_flags=("-march=x86-64-v3", "-fPIC"),
+    asm_flags=("-march=native", "-fPIC"),
     c_flags=("-std=c11", "-fPIC"),
     baseline_flags=("-O3", "-march=native"),
     oracle_flags=("-O1",),

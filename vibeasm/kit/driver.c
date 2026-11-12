@@ -850,7 +850,7 @@ static int bench(const char *symbol, fn_t oracle, cand_t *cands, int ncand, bcas
 
 /* ---- call: run one explicit input --------------------------------------------- */
 
-static int call_once(fn_t oracle, fn_t cand, const char *input_path, const char *args_spec) {
+static int run_call_once(fn_t oracle, fn_t cand, const char *input_path, const char *args_spec) {
     uint64_t viol = 0;
     char regs[256];
     g.mode = "call";
@@ -1045,7 +1045,7 @@ int main(int argc, char **argv) {
         if (ncase == 0) die("bench needs at least one --case");
         return bench(symbol, oracle, cands, ncand, cases, ncase, samples, sample_us * 1000, seed);
     }
-    if (strcmp(mode, "call") == 0) return call_once(oracle, cands[0].fn, input_path, args_spec);
+    if (strcmp(mode, "call") == 0) return run_call_once(oracle, cands[0].fn, input_path, args_spec);
     die("unknown mode %s", mode);
     return 2;
 }

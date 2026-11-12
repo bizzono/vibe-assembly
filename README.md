@@ -133,6 +133,53 @@ Full cold-start and warm-loop tables, toolchain versions, and methodology are in
 
 ---
 
+## Token cost & code footprint across all 12 languages vs. Assembly
+
+How many LLM tokens does it actually cost to write all six kernels in assembly compared to high-level languages—and what do those tokens buy in runtime performance?
+
+Measured directly across all 72 source files in [`solutions/arm64-darwin/`](solutions/arm64-darwin/) and [`shootout/langs/`](shootout/langs/) via [`shootout/tokens.py`](shootout/tokens.py):
+
+![Token cost vs runtime speed across 12 languages](docs/media/token-cost.svg)
+
+| Language | Total LOC (6 kernels) | Source Bytes | Code Tokens (6 kernels) | 1-Shot LLM Cost ($3/$15 per 1M) | Full Agentic Loop Cost | Batch Runtime (all 6 kernels) | Geomean vs Assembly |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **Assembly** | **1,223** | **36,585 B** | **10,740** | **$0.172** | **$14.52** | **5.2 ms** | **1.0x** |
+| **Rust** | 252 | 8,541 B | 2,528 | $0.049 | — | 55.7 ms | **14.2x** |
+| **C++** | 241 | 9,620 B | 2,955 | $0.055 | — | 55.8 ms | **14.4x** |
+| **C** | 182 | 8,725 B | 2,350 | $0.046 | — | 56.4 ms | **14.5x** |
+| **Zig** | 214 | 7,246 B | 2,312 | $0.045 | — | 57.2 ms | **15.7x** |
+| **Swift** | 253 | 11,425 B | 3,034 | $0.056 | — | 67.4 ms | **20.2x** |
+| **Go** | 233 | 6,216 B | 2,070 | $0.042 | — | 66.1 ms | **20.2x** |
+| **C#** | 240 | 8,305 B | 2,183 | $0.044 | — | 66.0 ms | **20.7x** |
+| **Java** | 215 | 8,067 B | 2,292 | $0.045 | — | 67.6 ms | **21.1x** |
+| **JavaScript** | 214 | 6,811 B | 2,242 | $0.044 | — | 73.2 ms | **26.3x** |
+| **Ruby** | 221 | 6,329 B | 1,716 | $0.037 | — | 1,846.8 ms | **413.6x** |
+| **Python** | 173 | 6,292 B | 1,716 | $0.037 | — | 1,689.5 ms | **582.6x** |
+
+### Per-task code tokens & verified agent cost breakdown
+
+| Language | `wordcount` | `utf8_validate` | `crc32` | `base64_encode` | `mandelbrot` | `nqueens` | Total Tokens |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **Assembly** | 1,291 ($2.55) | 2,195 ($4.80) | 2,589 ($3.24) | 1,644 ($1.33) | 1,350 ($2.60) | 1,671 (manual) | **10,740** |
+| **C** | 167 | 462 | 893 | 404 | 235 | 189 | **2,350** |
+| **C++** | 218 | 557 | 345 | 826 | 586 | 423 | **2,955** |
+| **Rust** | 254 | 530 | 297 | 738 | 415 | 294 | **2,528** |
+| **Zig** | 166 | 498 | 256 | 628 | 467 | 297 | **2,312** |
+| **Go** | 146 | 464 | 239 | 585 | 398 | 238 | **2,070** |
+| **Swift** | 182 | 487 | 994 | 663 | 423 | 285 | **3,034** |
+| **Java** | 191 | 501 | 251 | 616 | 426 | 307 | **2,292** |
+| **C#** | 159 | 489 | 234 | 686 | 358 | 257 | **2,183** |
+| **JavaScript** | 164 | 465 | 273 | 683 | 367 | 290 | **2,242** |
+| **Python** | 97 | 420 | 189 | 452 | 295 | 263 | **1,716** |
+| **Ruby** | 102 | 415 | 174 | 498 | 264 | 263 | **1,716** |
+
+Key takeaways:
+- **~4.6x code tokens for a 14.5x–582.6x runtime speedup**: Across all 6 kernels, the verified assembly is **10,740 code tokens** vs **2,350** in C, **2,528** in Rust, and **1,716** in Python/Ruby.
+- **+$0.13 in one-shot output tokens**: In a single-shot prompt ($3/1M input, $15/1M output), generating all 6 kernels in assembly costs **$0.172** vs **$0.037–$0.056** in high-level languages—a delta of **13 cents**.
+- **$14.52 for full autonomous multi-turn verification**: Running the multi-round agentic harness (`vibeasm run`, where the agent iteratively writes candidates, runs `vibeasm check` and `vibeasm bench`, diagnoses counterexamples, and clears over 1,000,000 hold-out fuzz cases) cost **$1.33 to $4.80 per kernel** (**$14.52 total**).
+
+---
+
 ## Why the gates matter: a real catch
 
 During the first autonomous run on `wordcount` ([`docs/logs/wordcount-first-run.log`](docs/logs/wordcount-first-run.log)), the agent wrote a NEON routine that classified 64 bytes per iteration and accumulated per-lane word-start counts in unsigned byte lanes (`v24.16b`), flushing them to 64-bit integers every 255 iterations.

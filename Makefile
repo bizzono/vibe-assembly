@@ -58,6 +58,10 @@ endef
 
 $(foreach t,$(TASKS),$(eval $(call task_rule,$(t))))
 
+OBJS += $(BUILD)/vibeasm_version.o
+$(BUILD)/vibeasm_version.o: include/vibeasm_version.c | $(BUILD)
+	$(CC) $(CFLAGS) -c $< -o $@
+
 STATIC_LIB := $(BUILD)/libvibeasm.a
 SHARED_LIB := $(BUILD)/libvibeasm$(DYLIB_EXT)
 DEMO_BIN   := $(BUILD)/vibe-demo

@@ -28,7 +28,7 @@ set(VIBEASM_TASKS
     wordcount
 )
 
-set(VIBEASM_SOURCES "")
+set(VIBEASM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/vibeasm_version.c")
 foreach(task IN LISTS VIBEASM_TASKS)
     set(asm_path "${CMAKE_CURRENT_SOURCE_DIR}/solutions/${VIBEASM_TARGET}/${task}.s")
     set(ref_path "${CMAKE_CURRENT_SOURCE_DIR}/tasks/${task}/ref.c")
@@ -41,7 +41,7 @@ endforeach()
 
 # Static library
 add_library(vibeasm_static STATIC ${VIBEASM_SOURCES})
-set_target_properties(vibeasm_static PROPERTIES OUTPUT_NAME vibeasm)
+set_target_properties(vibeasm_static PROPERTIES OUTPUT_NAME vibeasm LINKER_LANGUAGE C)
 target_include_directories(vibeasm_static PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -49,7 +49,7 @@ target_include_directories(vibeasm_static PUBLIC
 
 # Shared library
 add_library(vibeasm_shared SHARED ${VIBEASM_SOURCES})
-set_target_properties(vibeasm_shared PROPERTIES OUTPUT_NAME vibeasm VERSION ${PROJECT_VERSION} SOVERSION 0)
+set_target_properties(vibeasm_shared PROPERTIES OUTPUT_NAME vibeasm LINKER_LANGUAGE C VERSION ${PROJECT_VERSION} SOVERSION 0)
 target_include_directories(vibeasm_shared PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
