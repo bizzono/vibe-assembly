@@ -101,5 +101,42 @@ def main():
                                                     data["chart"]["kernels"], ", DRAFT" if data["draft"] else ""))
 
 
+def add_extended_data(data):
+    sys.path.insert(0, str(ROOT / "shootout"))
+    sys.path.insert(0, str(ROOT / "examples"))
+    import tokens
+    import make_visuals
+    rows, _ = tokens.compute_stats()
+    data["tokens"] = [
+        {
+            "id": r["id"],
+            "name": r["name"],
+            "loc": r["loc"],
+            "tokens": r["tokens"],
+            "oneshot_usd": round(r["oneshot_usd"], 3),
+            "agent_usd": round(r["agent_usd"], 2),
+            "total_ms": round(r["total_ms"], 1),
+            "geomean": round(r["geomean"], 1),
+        }
+        for r in rows
+    ]
+    # Flatten 24 half-block rows (each has top/bottom RGB) into 48 pixel rows of 72 "#rrggbb" strings
+    half_rows = make_visuals.capture_mandelbrot_grid()
+    pixel_rows = []
+    for hr in half_rows:
+        top_row = ["#%02x%02x%02x" % (r1, g1, b1) for (r1, g1, b1, _, _, _) in hr]
+        bot_row = ["#%02x%02x%02x" % (r2, g2, b2) for (_, _, _, r2, g2, b2) in hr]
+        pixel_rows.append(top_row)
+        pixel_rows.append(bot_row)
+    data["mandelbrot"] = pixel_rows
+
+
 if __name__ == "__main__":
     main()
+    d = json.loads(OUT.read_text())
+    if not d.get("draft"):
+        add_extended_data(d)
+        OUT.write_text(json.dumps(d, indent=1) + "\n")
+        print("added token stats (%d langs) and mandelbrot grid (%dx%d)" % (
+            len(d["tokens"]), len(d["mandelbrot"][0]), len(d["mandelbrot"])))
+

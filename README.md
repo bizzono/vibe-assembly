@@ -40,7 +40,7 @@ Can you write an entire application—or replace the hot path of an existing one
 
 ### 1. Anatomy of a one-shot solution (`base64_encode` in 1 round)
 
-![One-shot assembly walkthrough](docs/media/oneshot-walkthrough.svg)
+![One-shot assembly walkthrough animation](docs/media/oneshot-anim.gif)
 
 Given only the 3-line C prototype in [`tasks/base64_encode/SPEC.md`](tasks/base64_encode/SPEC.md), a single round of `bin/vibeasm run base64_encode` produced [`solutions/arm64-darwin/base64_encode.s`](solutions/arm64-darwin/base64_encode.s) (141 instructions, **4.79x** geomean, **5.84x** at 1 MiB = **23.7 GB/s**):
 
@@ -76,7 +76,7 @@ st4     {v3.16b, v4.16b, v5.16b, v6.16b}, [x2], #64
 clang examples/standalone_mandelbrot.s -o /tmp/mandelbrot && /tmp/mandelbrot
 ```
 
-![Standalone ARM64 assembly Mandelbrot output](docs/media/standalone-mandelbrot.svg)
+![Standalone ARM64 assembly Mandelbrot animation](docs/media/mandelbrot-anim.gif)
 
 ### 3. Drop-in C/C++/CMake/Make SDK integration (`include/vibeasm.h`)
 
@@ -139,7 +139,7 @@ How many LLM tokens does it actually cost to write all six kernels in assembly c
 
 Measured directly across all 72 source files in [`solutions/arm64-darwin/`](solutions/arm64-darwin/) and [`shootout/langs/`](shootout/langs/) via [`shootout/tokens.py`](shootout/tokens.py):
 
-![Token cost vs runtime speed across 12 languages](docs/media/token-cost.svg)
+![Token cost vs runtime speed animation across 12 languages](docs/media/token-cost-anim.gif)
 
 | Language | Total LOC (6 kernels) | Source Bytes | Code Tokens (6 kernels) | 1-Shot LLM Cost ($3/$15 per 1M) | Full Agentic Loop Cost | Batch Runtime (all 6 kernels) | Geomean vs Assembly |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -181,6 +181,8 @@ Key takeaways:
 ---
 
 ## Why the gates matter: a real catch
+
+![Five verification gates animation](docs/media/gates-anim.gif)
 
 During the first autonomous run on `wordcount` ([`docs/logs/wordcount-first-run.log`](docs/logs/wordcount-first-run.log)), the agent wrote a NEON routine that classified 64 bytes per iteration and accumulated per-lane word-start counts in unsigned byte lanes (`v24.16b`), flushing them to 64-bit integers every 255 iterations.
 

@@ -221,7 +221,7 @@ def lint_object(target: Target, obj: Path, symbol: str, disassembly: str) -> Lin
             seen.add(("sysreg", ops))
             res.errors.append("instruction `%s %s` at +0x%x touches a system register; only NZCV is allowed."
                               % (mn, ops, addr))
-        if re.search(r"\b[xw]18\b", ops) and "x18" not in seen:
+        if target.name.endswith("-darwin") and re.search(r"\b[xw]18\b", ops) and "x18" not in seen:
             seen.add("x18")
             res.errors.append("instruction `%s %s` at +0x%x uses x18, which Apple platforms reserve. "
                               "Pick another register." % (mn, ops, addr))
