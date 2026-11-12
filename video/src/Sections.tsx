@@ -653,3 +653,123 @@ export const GatesAnim: React.FC = () => {
     </Sheet>
   );
 };
+
+/**
+ * 6. AgentWorkflowAnim: Animates how to use vibe-assembly in Claude Code,
+ *    OpenAI Codex CLI, Cursor/Windsurf, or any custom CLI agent.
+ */
+export const AgentWorkflowAnim: React.FC = () => {
+  const f = useCurrentFrame();
+
+  const cards = [
+    {
+      title: "CLAUDE CODE (Skill + Headless Runner)",
+      skill: ".claude/skills/vibe-assembly/SKILL.md",
+      cmd1: "$ bin/vibeasm run crc32 --agent claude --rounds 3",
+      cmd2: 'claude> "Use vibe-assembly to beat clang -O3 on crc32"',
+      y: 126,
+    },
+    {
+      title: "OPENAI CODEX CLI (AGENTS.md + --agent codex)",
+      skill: ".codex/skills/vibe-assembly/SKILL.md + AGENTS.md",
+      cmd1: "$ bin/vibeasm run crc32 --agent codex --model o3",
+      cmd2: 'codex> "Run vibeasm work crc32 and optimize solution.s"',
+      y: 288,
+    },
+    {
+      title: "CURSOR / WINDSURF / AIDER / ANY LLM",
+      skill: ".cursor/rules/vibe-assembly.mdc + --agent cmd",
+      cmd1: '$ bin/vibeasm run crc32 --agent cmd --agent-cmd "llm"',
+      cmd2: "$ bin/vibeasm brief crc32 | pbcopy   # paste into any chat",
+      y: 450,
+    },
+  ];
+
+  const feed = [
+    { at: 0, tag: "[PROMPT]", text: "Read TASK.md + ABI.md + baseline.s (clang -O3)", col: T.ink },
+    { at: 10, tag: "[AGENT] ", text: "Wrote v1_pmull.s (4-way clmul fold)", col: T.pen },
+    { at: 20, tag: "[CHECK] ", text: "$ vibeasm check v1_pmull.s", col: T.ink },
+    { at: 28, tag: "[GATE 3]", text: "FAIL: callee-saved d8 clobbered on return", col: T.red },
+    { at: 38, tag: "[AGENT] ", text: "Fixed prologue stp d8, d9 -> wrote v2_pmull12.s", col: T.pen },
+    { at: 48, tag: "[BENCH] ", text: "$ vibeasm bench v1_pmull.s v2_pmull12.s", col: T.ink },
+    { at: 58, tag: "[SPEED] ", text: "PASS · 19.4x -> 88.06x vs clang -O3 (199.8x @ 1M)", col: T.pen },
+    { at: 68, tag: "[JUDGE] ", text: "$ vibeasm accept crc32 (fresh hold-out seeds)", col: T.ink },
+    { at: 78, tag: "[INSTALLED]", text: "194,820 cases PASS -> solutions/arm64-darwin/crc32.s", col: T.pen },
+  ];
+
+  return (
+    <Sheet pages={1}>
+      <Line page={0} row={1.3} at={0} weight={600}>
+        USING VIBE-ASSEMBLY IN CLAUDE CODE, OPENAI CODEX &amp; CURSOR
+      </Line>
+      <Line page={0} row={2.2} at={0} color={T.soft} size={17.5}>
+        Drop-in skills (.claude, .codex, .cursor, AGENTS.md) + headless multi-round agent harness
+      </Line>
+
+      {/* Left Column: 3 Agent Setup Cards */}
+      {cards.map((c) => (
+        <div
+          key={c.title}
+          style={{
+            position: "absolute",
+            left: 84,
+            top: c.y,
+            width: 515,
+            height: 142,
+            background: "#e8f0e4",
+            border: `2px solid ${T.pen}`,
+            borderRadius: 6,
+            padding: "8px 12px",
+            fontFamily: mono,
+          }}
+        >
+          <div style={{ fontSize: 15, fontWeight: 600, color: T.pen }}>{c.title}</div>
+          <div style={{ fontSize: 12.5, color: T.soft, marginTop: 3 }}>Auto-loaded: {c.skill}</div>
+          <div
+            style={{
+              marginTop: 8,
+              background: "#161b22",
+              color: "#7ee787",
+              padding: "6px 8px",
+              borderRadius: 4,
+              fontSize: 12.5,
+              lineHeight: 1.45,
+              whiteSpace: "pre",
+            }}
+          >
+            {c.cmd1 + "\n" + c.cmd2}
+          </div>
+        </div>
+      ))}
+
+      {/* Right Column: Live Agent Feedback Loop */}
+      <Line page={0} row={4.2} at={0} x={625} weight={600} size={17} color={T.pen}>
+        WHAT HAPPENS INSIDE THE AGENT LOOP
+      </Line>
+
+      {feed.map((item, idx) => {
+        if (f < item.at) return null;
+        const r = 5.5 + idx * 1.42;
+        return (
+          <Line
+            key={idx}
+            page={0}
+            row={r}
+            at={item.at}
+            x={625}
+            size={14}
+            weight={item.col === T.pen || item.col === T.red ? 600 : 400}
+            color={item.col}
+          >
+            {`${item.tag} ${item.text}`}
+          </Line>
+        );
+      })}
+
+      <Stroke page={0} at={84} d={loopPath(620, rowY(16.8) - 14, 575, 30)} />
+      <Note page={0} x={84} y={rowY(20.6)} at={50} size={26} rotate={-0.8}>
+        Works with Claude Code, OpenAI Codex CLI, Cursor, Aider, or any custom model!
+      </Note>
+    </Sheet>
+  );
+};

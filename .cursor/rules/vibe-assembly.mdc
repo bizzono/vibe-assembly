@@ -1,0 +1,28 @@
+---
+description: Write, verify, and benchmark assembly functions using the vibe-assembly 5-gate harness (`bin/vibeasm`).
+globs: ["**/*.s", "tasks/**", "vibeasm/**"]
+alwaysApply: false
+---
+
+# Writing Verified Assembly with `vibe-assembly`
+
+When asked to write or optimize a function in assembly:
+
+1. **Check the target & toolchain**:
+   ```sh
+   bin/vibeasm doctor
+   ```
+2. **Create or open a task workdir**:
+   - Existing task: `bin/vibeasm work <task>`
+   - New task: `bin/vibeasm new <name> --shape bytes_to_u64` (then fill in `SPEC.md`, `ref.c`, `gen.c`, `task.json`)
+3. **Iterate inside the workdir (`runs/<task>/manual/work/`)**:
+   - Read `TASK.md` and `ABI.md`
+   - Edit `solution.s`
+   - Run all 5 verification gates: `bin/vibeasm check <task> runs/<task>/manual/work/solution.s`
+   - Probe single inputs or counterexamples: `bin/vibeasm call <task> runs/<task>/manual/work/solution.s --text "hello"`
+   - Benchmark vs `clang -O3`: `bin/vibeasm bench <task> runs/<task>/manual/work/solution.s`
+4. **Accept with fresh hold-out seeds**:
+   ```sh
+   bin/vibeasm accept <task> runs/<task>/manual/work/solution.s --by "cursor"
+   ```
+   Never edit `solutions/` by hand and never report a speedup that `vibeasm` did not print.

@@ -248,6 +248,73 @@ Every candidate `.s` file must clear five gates in order (see [`docs/HOW_IT_WORK
 
 ---
 
+## Using `vibe-assembly` in Claude Code, OpenAI Codex CLI, Cursor & Custom Agents
+
+![Using vibe-assembly in Claude Code, OpenAI Codex, and Cursor](docs/media/agent-workflow-anim.gif)
+
+This repository ships with pre-configured agent skills and rules so you can drop it into **Claude Code**, **OpenAI Codex CLI**, **Cursor**, **Windsurf**, **Aider**, or any custom LLM CLI:
+
+| Agent / Tool | Auto-Loaded Skill / Rule File | Headless Multi-Round Command |
+|---|---|---|
+| **Claude Code** | [`.claude/skills/vibe-assembly/SKILL.md`](.claude/skills/vibe-assembly/SKILL.md) | `bin/vibeasm run <task> --agent claude --rounds 3` |
+| **OpenAI Codex CLI** | [`.codex/skills/vibe-assembly/SKILL.md`](.codex/skills/vibe-assembly/SKILL.md) & [`AGENTS.md`](AGENTS.md) | `bin/vibeasm run <task> --agent codex --model o3 --rounds 3` |
+| **Cursor / Windsurf** | [`.cursor/rules/vibe-assembly.mdc`](.cursor/rules/vibe-assembly.mdc) | Interactive via `bin/vibeasm work <task>` |
+| **Aider / Custom CLI** | [`vibeasm/prompts/brief.md`](vibeasm/prompts/brief.md) | `bin/vibeasm run <task> --agent cmd --agent-cmd "<cmd>"` |
+
+### 1. Claude Code (`claude`)
+
+- **Interactive mode (inside your terminal)**:
+  Open this repository (or copy `.claude/skills/vibe-assembly` into `~/.claude/skills/`) and run `claude`:
+  ```text
+  > Write a verified assembly implementation for crc32 that beats clang -O3 using vibe-assembly.
+  > Or: Create a new vibeasm task called fnv1a_hash for 64-bit FNV-1a hashing and solve it in ARM64 assembly.
+  ```
+  Claude Code automatically loads [`.claude/skills/vibe-assembly/SKILL.md`](.claude/skills/vibe-assembly/SKILL.md), runs `bin/vibeasm work`, iterates with `vibeasm check` and `vibeasm bench`, and installs the verified `.s` file with `bin/vibeasm accept`.
+- **Headless autonomous mode (sandboxed to the work directory)**:
+  ```sh
+  bin/vibeasm run wordcount --agent claude --model claude-opus-4-6 --rounds 3
+  ```
+
+### 2. OpenAI Codex CLI (`codex`)
+
+- **Interactive mode**:
+  Run `codex` in the repository root (it automatically reads [`AGENTS.md`](AGENTS.md) and [`.codex/skills/vibe-assembly/SKILL.md`](.codex/skills/vibe-assembly/SKILL.md)):
+  ```text
+  > Use bin/vibeasm work utf8_validate to optimize solution.s, verify it passes all 5 gates, and benchmark it against clang -O3.
+  ```
+- **Headless autonomous mode (`--agent codex`)**:
+  ```sh
+  bin/vibeasm run wordcount --agent codex --model o3 --rounds 3
+  ```
+
+### 3. Cursor, Windsurf & IDE Coding Agents
+
+- Open the repository in **Cursor** or **Windsurf**—the rule file [`.cursor/rules/vibe-assembly.mdc`](.cursor/rules/vibe-assembly.mdc) automatically attaches whenever you open `*.s` or `tasks/**`.
+- Prepare a self-contained work directory with the contract, ABI guide, reference C, and compiler baseline:
+  ```sh
+  bin/vibeasm work base64_encode
+  ```
+  Then ask the IDE agent: *"Read `runs/base64_encode/manual/work/TASK.md` and `ABI.md`, write a SIMD solution in `solution.s`, and run `bin/vibeasm bench base64_encode runs/base64_encode/manual/work/solution.s` until it beats `clang -O3`."*
+
+### 4. Aider, `llm`, Ollama, or Any Chat Model (`--agent cmd` & `vibeasm brief`)
+
+- **Any CLI tool or script (`--agent cmd`)**:
+  ```sh
+  # One-shot model CLI (reads TASK.md from stdin and outputs a ```asm code block)
+  bin/vibeasm run wordcount --agent cmd --agent-cmd "llm -m gpt-4.1"
+
+  # Agentic CLI tool that edits solution.s in {workdir} and runs vibeasm itself
+  bin/vibeasm run wordcount --agent cmd --agentic --agent-cmd "aider --yes --message-file {brief} {workdir}/solution.s"
+  ```
+- **Web Chat UI (ChatGPT / Claude.ai / Gemini)**:
+  Generate a single self-contained prompt with the spec, C reference, and ABI rules, copy it to your clipboard, paste the model's `.s` response into `solution.s`, and verify it:
+  ```sh
+  bin/vibeasm brief wordcount --oneshot | pbcopy
+  bin/vibeasm accept wordcount path/to/solution.s --by "web-chat"
+  ```
+
+---
+
 ## Quick start
 
 Requirements: macOS on Apple Silicon (`arm64-darwin`), Python 3.9+ (standard library only), and the Xcode Command Line Tools (`clang`, `nm`, `otool`).

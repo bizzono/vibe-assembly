@@ -20,7 +20,7 @@ from . import __version__
 from .bench import BenchError, bench, render
 from .build import Builder
 from .gates import build_and_lint, call, check, flavors
-from .agent import ClaudeCodeAgent, CommandAgent, ManualAgent, build_brief
+from .agent import ClaudeCodeAgent, CodexAgent, CommandAgent, ManualAgent, build_brief
 from .loop import install, judge, prepare_workdir, provenance, run_task
 from .newtask import scaffold
 from .target import UnsupportedTarget, describe_host, detect, host_target_name
@@ -281,11 +281,13 @@ def make_agent(args):
     if args.agent == "claude":
         return ClaudeCodeAgent(model=args.model, effort=args.effort, max_budget_usd=args.budget,
                                timeout_s=args.timeout * 60)
+    if args.agent == "codex":
+        return CodexAgent(model=args.model, effort=args.effort, timeout_s=args.timeout * 60)
     if args.agent == "cmd":
         return CommandAgent(args.agent_cmd or "", agentic=args.agentic, timeout_s=args.timeout * 60)
     if args.agent == "manual":
         return ManualAgent()
-    raise UsageError("unknown agent '%s' (claude, cmd, manual)" % args.agent)
+    raise UsageError("unknown agent '%s' (claude, codex, cmd, manual)" % args.agent)
 
 
 def cmd_run(args) -> int:
@@ -456,7 +458,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = add("run", cmd_run, "have an agent write (or improve) the solution for a task, verifying every round")
     sp.add_argument("task", help="task name, or `all`")
-    sp.add_argument("--agent", default="claude", help="claude (Claude Code, headless) | cmd | manual")
+    sp.add_argument("--agent", default="claude", help="claude (Claude Code) | codex (OpenAI Codex CLI) | cmd | manual")
     sp.add_argument("--agent-cmd", help="for --agent cmd: shell command; the brief is on stdin, {brief} and {workdir} are substituted")
     sp.add_argument("--agentic", action="store_true", help="for --agent cmd: the command can run `vibeasm` itself and edits solution.s")
     sp.add_argument("--model", default="", help="model for the agent (default: the agent's own default)")

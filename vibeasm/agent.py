@@ -363,6 +363,53 @@ def _first_verdict(text: str) -> str:
     return lines[0][:110] if lines else ""
 
 
+class CodexAgent:
+    """OpenAI Codex CLI in headless `codex exec` mode, confined to the work directory."""
+
+    name = "codex"
+    agentic = True
+
+    def __init__(self, model: str = "", effort: str = "", timeout_s: int = 3600,
+                 extra_args: Optional[List[str]] = None):
+        self.model, self.effort, self.timeout_s = model, effort, timeout_s
+        self.extra_args = extra_args or []
+
+    def available(self) -> Optional[str]:
+        return None if shutil.which("codex") else "the `codex` command (OpenAI Codex CLI) is not on PATH"
+
+    def command(self, workdir: Path) -> List[str]:
+        cmd = ["codex", "exec", "--cd", str(workdir), "--sandbox", "workspace-write"]
+        if self.model:
+            cmd += ["-m", self.model]
+        if self.effort:
+            cmd += ["-c", "model_reasoning_effort=%s" % self.effort]
+        cmd += self.extra_args
+        cmd.append("Read TASK.md in the current directory and carry out the task it describes.")
+        return cmd
+
+    def run(self, workdir: Path, root: Path, log_path: Path,
+            on_event: Optional[Callable[[str], None]] = None) -> AgentResult:
+        t0 = time.time()
+        before = (workdir / "solution.s").read_bytes() if (workdir / "solution.s").exists() else b""
+        try:
+            p = subprocess.run(self.command(workdir), cwd=str(workdir), env=_child_env(root),
+                               stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                               errors="replace", timeout=self.timeout_s)
+        except subprocess.TimeoutExpired:
+            return AgentResult(False, error="codex session exceeded %d s" % self.timeout_s, seconds=time.time() - t0)
+        log_path.write_text(p.stdout + ("\n--- stderr ---\n" + p.stderr if p.stderr else ""))
+        after = (workdir / "solution.s").read_bytes() if (workdir / "solution.s").exists() else b""
+        if after == before:
+            block = extract_code_block(p.stdout)
+            if block:
+                (workdir / "solution.s").write_text(block)
+        if p.returncode != 0 and after == before and not extract_code_block(p.stdout):
+            detail = (p.stderr.strip() or p.stdout.strip())[-400:]
+            return AgentResult(False, error="codex command failed (exit %d): %s" % (p.returncode, detail),
+                               seconds=time.time() - t0, model=self.model)
+        return AgentResult(True, message=p.stdout.strip()[-2000:], seconds=time.time() - t0, model=self.model)
+
+
 class CommandAgent:
     """Any command-line agent or model. The brief is piped to stdin; {workdir} and
     {brief} in the command template are replaced with paths."""
