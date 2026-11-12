@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" width="960" height="430">
+<defs>
+  <style>
+    .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+    .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  </style>
+</defs>
+<rect width="960" height="430" rx="12" fill="#fbfaf5" stroke="#d5ceb8" stroke-width="1.5"/>
+<rect x="1" y="1" width="958" height="48" rx="11" fill="#e5eedf"/>
+<line x1="1" y1="49" x2="959" y2="49" stroke="#c3d1b8" stroke-width="1"/>
+<text x="24" y="30" fill="#1d2b1f" font-size="13.5" font-weight="700" class="mono">ONE-SHOT ASSEMBLY WALKTHROUGH :: C PROTOTYPE TO VERIFIED KERNEL</text>
+<text x="936" y="30" text-anchor="end" fill="#2e6b34" font-size="12" font-weight="700" class="mono">1 ROUND · 194,840 TESTS · PASS</text>
+<rect x="20" y="66" width="290" height="344" rx="8" fill="#ffffff" stroke="#d5ceb8"/>
+<text x="36" y="92" fill="#2e6b34" font-size="11.5" font-weight="700" class="mono">1. THE CONTRACT (base64_encode)</text>
+<text x="36" y="116" fill="#444" font-size="12" class="sans">Give the harness a C prototype &amp; oracle:</text>
+<rect x="36" y="128" width="258" height="62" rx="5" fill="#f4f2ea" stroke="#e0dac6"/>
+<text x="46" y="148" fill="#1b1b1b" font-size="11" class="mono">size_t base64_encode(</text>
+<text x="46" y="164" fill="#1b1b1b" font-size="11" class="mono">    const uint8_t *src, size_t n,</text>
+<text x="46" y="180" fill="#1b1b1b" font-size="11" class="mono">    uint8_t *dst);</text>
+<text x="36" y="214" fill="#2e6b34" font-size="12" font-weight="700" class="mono">2. ONE COMMAND TO SOLVE</text>
+<rect x="36" y="224" width="258" height="34" rx="5" fill="#1d2420"/>
+<text x="46" y="246" fill="#87e093" font-size="11.5" class="mono">$ bin/vibeasm run base64_encode</text>
+<text x="36" y="282" fill="#444" font-size="11.5" class="sans">Solved in Round 1 (5.6 min, 21 turns):</text>
+<text x="36" y="304" fill="#1b1b1b" font-size="11.5" class="mono">• 24 B   :  2.97x vs clang -O3</text>
+<text x="36" y="322" fill="#1b1b1b" font-size="11.5" class="mono">• 255 B  :  5.27x vs clang -O3</text>
+<text x="36" y="340" fill="#1b1b1b" font-size="11.5" class="mono">• 4 KiB  :  5.75x vs clang -O3</text>
+<text x="36" y="358" fill="#1b1b1b" font-size="11.5" class="mono">• 1 MiB  :  5.84x (23.7 GB/s)</text>
+<text x="36" y="386" fill="#2e6b34" font-size="12.5" font-weight="700" class="mono">Geomean  :  4.79x vs clang -O3</text>
+<rect x="328" y="66" width="314" height="344" rx="8" fill="#ffffff" stroke="#d5ceb8"/>
+<text x="344" y="92" fill="#2e6b34" font-size="12" font-weight="700" class="mono">3. WHAT THE AGENT WROTE (.s)</text>
+<text x="344" y="114" fill="#444" font-size="11.5" class="sans">64 Base64 chars per loop iteration, 0 branches:</text>
+<rect x="344" y="126" width="282" height="196" rx="5" fill="#161b22"/>
+<text x="354" y="146" fill="#8b949e" font-size="10" class="mono">// Load &amp; deinterleave 48 bytes (16x3)</text>
+<text x="354" y="162" fill="#79c0ff" font-size="10.5" class="mono">ld3  {v0.16b,v1.16b,v2.16b}, [x0], #48</text>
+<text x="354" y="182" fill="#8b949e" font-size="10" class="mono">// Split 24-bit triples into 6-bit lanes</text>
+<text x="354" y="198" fill="#d2a8ff" font-size="10.5" class="mono">ushr v3.16b, v0.16b, #2</text>
+<text x="354" y="214" fill="#d2a8ff" font-size="10.5" class="mono">ushr v4.16b, v1.16b, #4</text>
+<text x="354" y="230" fill="#d2a8ff" font-size="10.5" class="mono">sli  v4.16b, v0.16b, #4</text>
+<text x="354" y="250" fill="#8b949e" font-size="10" class="mono">// 64-byte alphabet lookup in 1 cycle</text>
+<text x="354" y="266" fill="#7ee787" font-size="10.5" class="mono">tbl  v3.16b, {v16.16b-v19.16b}, v3.16b</text>
+<text x="354" y="286" fill="#8b949e" font-size="10" class="mono">// Interleave &amp; store 64 Base64 bytes</text>
+<text x="354" y="302" fill="#ffa657" font-size="10.5" class="mono">st4  {v3.16b-v6.16b}, [x2], #64</text>
+<text x="344" y="344" fill="#1b1b1b" font-size="11.5" font-weight="600" class="sans">Drop directly into any C/Rust/Zig app:</text>
+<rect x="344" y="354" width="282" height="42" rx="5" fill="#f4f2ea" stroke="#e0dac6"/>
+<text x="354" y="372" fill="#1b1b1b" font-size="10.5" class="mono">$ clang -O3 app.c \</text>
+<text x="354" y="388" fill="#1b1b1b" font-size="10.5" class="mono">    solutions/arm64-darwin/*.s -o app</text>
+<rect x="660" y="66" width="280" height="344" rx="8" fill="#ffffff" stroke="#d5ceb8"/>
+<text x="676" y="92" fill="#2e6b34" font-size="12" font-weight="700" class="mono">4. FIVE GATES BEFORE TRUST</text>
+<rect x="676" y="110" width="248" height="46" rx="6" fill="#edf5ea" stroke="#b9d4b0"/>
+<text x="688" y="129" fill="#1e5624" font-size="10.8" font-weight="700" class="mono">✓ GATE 1 · Static Source Lint</text>
+<text x="688" y="145" fill="#3d5240" font-size="9.8" class="mono">141 insns · no svc/brk · no .data</text>
+<rect x="676" y="166" width="248" height="46" rx="6" fill="#edf5ea" stroke="#b9d4b0"/>
+<text x="688" y="185" fill="#1e5624" font-size="10.8" font-weight="700" class="mono">✓ GATE 2 · Object Symbol Hygiene</text>
+<text x="688" y="201" fill="#3d5240" font-size="9.8" class="mono">Exports _base64_encode · 0 undef</text>
+<rect x="676" y="222" width="248" height="46" rx="6" fill="#edf5ea" stroke="#b9d4b0"/>
+<text x="688" y="241" fill="#1e5624" font-size="10.8" font-weight="700" class="mono">✓ GATE 3 · ABI Register Trampoline</text>
+<text x="688" y="257" fill="#3d5240" font-size="9.8" class="mono">x19-x29, d8-d15, sp &amp; red zone ok</text>
+<rect x="676" y="278" width="248" height="46" rx="6" fill="#edf5ea" stroke="#b9d4b0"/>
+<text x="688" y="297" fill="#1e5624" font-size="10.8" font-weight="700" class="mono">✓ GATE 4 · PROT_NONE Guard Pages</text>
+<text x="688" y="313" fill="#3d5240" font-size="9.8" class="mono">1B before/after unmapped pages</text>
+<rect x="676" y="334" width="248" height="46" rx="6" fill="#edf5ea" stroke="#b9d4b0"/>
+<text x="688" y="353" fill="#1e5624" font-size="10.8" font-weight="700" class="mono">✓ GATE 5 · Hold-Out Fuzzing</text>
+<text x="688" y="369" fill="#3d5240" font-size="9.8" class="mono">194,840 cases (2 fresh seeds)</text>
+</svg>

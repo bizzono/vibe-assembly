@@ -16,3 +16,8 @@ jobs:
         run: python3 -m unittest discover -s tests -v
       - name: Verify installed assembly solutions
         run: bin/vibeasm verify --quick
+      - name: Build and run standalone assembly & C examples
+        run: |
+          clang examples/standalone_mandelbrot.s -o /tmp/mandelbrot_app && /tmp/mandelbrot_app > /dev/null
+          clang -O3 examples/fast_cli.c solutions/arm64-darwin/*.s -o /tmp/vibe-demo && /tmp/vibe-demo
+

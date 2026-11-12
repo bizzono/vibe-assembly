@@ -31,6 +31,73 @@ Provenance records (exact per-case timings, SHA-256 hashes, verification seeds, 
 
 ---
 
+## One-shot walkthrough & visual application examples
+
+Can you write an entire application—or replace the hot path of an existing one—with straight assembly produced in a single shot? Yes, because every verified `.s` file in [`solutions/arm64-darwin/`](solutions/arm64-darwin/) is a standard Mach-O object obeying the C calling convention, and you can also write standalone `_main` binaries in 100% assembly.
+
+### 1. Anatomy of a one-shot solution (`base64_encode` in 1 round)
+
+![One-shot assembly walkthrough](docs/media/oneshot-walkthrough.svg)
+
+Given only the 3-line C prototype in [`tasks/base64_encode/SPEC.md`](tasks/base64_encode/SPEC.md), a single round of `bin/vibeasm run base64_encode` produced [`solutions/arm64-darwin/base64_encode.s`](solutions/arm64-darwin/base64_encode.s) (141 instructions, **4.79x** geomean, **5.84x** at 1 MiB = **23.7 GB/s**):
+
+```armasm
+// Load 48 input bytes and de-interleave every 3-byte group into v0, v1, v2:
+ld3     {v0.16b, v1.16b, v2.16b}, [x0], #48
+
+// Split each 24-bit triple (a, b, c) into four 6-bit indices (0..63):
+ushr    v3.16b, v0.16b, #2          // idx0 = a >> 2
+ushr    v4.16b, v1.16b, #4
+sli     v4.16b, v0.16b, #4          // idx1 = ((a & 3) << 4) | (b >> 4)
+and     v4.16b, v4.16b, v20.16b     // mask to 0x3f
+ushr    v5.16b, v2.16b, #6
+sli     v5.16b, v1.16b, #2          // idx2 = ((b & 0xf) << 2) | (c >> 6)
+and     v5.16b, v5.16b, v20.16b
+and     v6.16b, v2.16b, v20.16b     // idx3 = c & 0x3f
+
+// Translate all 64 indices through the 64-byte Base64 alphabet in v16..v19:
+tbl     v3.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v3.16b
+tbl     v4.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v4.16b
+tbl     v5.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v5.16b
+tbl     v6.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v6.16b
+
+// Interleave the four 16-byte vectors and store 64 Base64 characters at once:
+st4     {v3.16b, v4.16b, v5.16b, v6.16b}, [x2], #64
+```
+
+### 2. Visual example: a 100% standalone assembly application (zero C files)
+
+[`examples/standalone_mandelbrot.s`](examples/standalone_mandelbrot.s) is a complete macOS executable written **entirely in ARM64 assembly**—no `.c` files, no `printf`, no third-party libraries. It computes a 72×48 IEEE-754 double-precision Mandelbrot grid with analytical cardioid and period-2 bulb rejection, formats 24-bit truecolor ANSI half-blocks (`▀`) on the stack, and flushes the frame in a single `_write` system call:
+
+```sh
+clang examples/standalone_mandelbrot.s -o /tmp/mandelbrot && /tmp/mandelbrot
+```
+
+![Standalone ARM64 assembly Mandelbrot output](docs/media/standalone-mandelbrot.svg)
+
+### 3. Drop-in C/Rust/Zig integration (`examples/fast_cli.c`)
+
+To use the verified assembly kernels inside a larger application, declare their `extern` prototypes and pass `solutions/arm64-darwin/*.s` to the linker ([`examples/fast_cli.c`](examples/fast_cli.c)):
+
+```sh
+clang -O3 examples/fast_cli.c solutions/arm64-darwin/*.s -o /tmp/vibe-demo && /tmp/vibe-demo
+```
+
+```
+======================================================================
+  vibe-assembly: calling verified arm64-darwin assembly from C
+======================================================================
+
+  1. utf8_validate (8 MiB) : valid=1          in  0.155 ms ( 54.1 GB/s)
+  2. wordcount     (8 MiB) : 1094167 words   in  0.135 ms ( 62.1 GB/s)
+  3. crc32_ieee    (8 MiB) : 0xcba9505c       in  0.085 ms ( 98.7 GB/s)
+  4. base64_encode (6 MiB) : 8388608 chars   in  0.685 ms (  9.2 GB/s)
+  5. mandelbrot  (512x512) : 9985499 iters   in  2.268 ms
+  6. nqueens        (N=12) :   14200 boards  in  2.567 ms
+```
+
+---
+
 ## 12-language shootout
 
 The same six kernels implemented idioms-first across 12 languages and timed on the same machine under [`shootout/PROTOCOL.md`](shootout/PROTOCOL.md) (minimum per-call time after warm-up; lower is better; multiplier is relative to Assembly):
@@ -164,6 +231,7 @@ python3 shootout/chart.py
 - [`vibeasm/kit/`](vibeasm/kit/) — C test/benchmark driver ([`driver.c`](vibeasm/kit/driver.c)) and ARM64 ABI check trampoline ([`tramp_arm64_darwin.s`](vibeasm/kit/tramp_arm64_darwin.s)).
 - [`tasks/`](tasks/) — Task specifications (`SPEC.md`), reference implementations (`ref.c`), input generators (`gen.c`), and benchmark configurations (`task.json`).
 - [`solutions/arm64-darwin/`](solutions/arm64-darwin/) — Verified assembly solutions (`.s`) and their provenance records (`.json`).
+- [`examples/`](examples/) — Runnable standalone ARM64 assembly binary ([`standalone_mandelbrot.s`](examples/standalone_mandelbrot.s)), C application linking all 6 verified `.s` kernels ([`fast_cli.c`](examples/fast_cli.c)), and visual SVG generator ([`make_visuals.py`](examples/make_visuals.py)).
 - [`shootout/`](shootout/) — 12-language benchmark suite (`c`, `asm`, `cpp`, `rust`, `zig`, `go`, `swift`, `java`, `csharp`, `js`, `python`, `ruby`), runner ([`shootout.py`](shootout/shootout.py)), chart generator ([`chart.py`](shootout/chart.py)), and results ([`RESULTS.md`](shootout/results/RESULTS.md)).
 - [`tests/`](tests/) — Harness unit tests ([`test_harness.py`](tests/test_harness.py)) and the [`tests/zoo/`](tests/zoo/) gallery of buggy assembly files that each fail one specific gate.
 - [`video/`](video/) — Remotion project that renders the green-bar line-printer preview from [`video/src/data.json`](video/src/data.json).
