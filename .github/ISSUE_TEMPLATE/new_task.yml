@@ -1,0 +1,28 @@
+name: Propose a New Assembly Task
+description: Suggest a new self-contained kernel for tasks/ and shootout/
+labels: ["enhancement"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Task Name & C Signature
+      placeholder: "e.g., size_t chacha20_xor(const uint8_t *in, size_t len, uint8_t *out)"
+    validations:
+      required: true
+  - type: dropdown
+    id: shape
+    attributes:
+      label: Task Shape
+      options:
+        - bytes_to_u64
+        - bytes_to_bytes
+        - ints_to_u64
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why is this a good assembly benchmark task?
+      description: Explain what SIMD/bit-manipulation/microarchitectural instructions make this kernel interesting.
+    validations:
+      required: true

@@ -50,7 +50,37 @@ ARM64_DARWIN = Target(
                      "DotProd, FP16, LSE, RDM; no SVE/SME)",
 )
 
-TARGETS: Dict[str, Target] = {t.name: t for t in (ARM64_DARWIN,)}
+ARM64_LINUX = Target(
+    name="arm64-linux",
+    cc="clang",
+    asm_flags=("-march=armv8.2-a+crc+crypto+dotprod+fp16", "-fPIC"),
+    c_flags=("-std=c11", "-fPIC"),
+    baseline_flags=("-O3", "-mcpu=native"),
+    oracle_flags=("-O1",),
+    shared_flags=("-shared", "-fPIC"),
+    dylib_ext=".so",
+    symbol_prefix="",
+    tramp="tramp_arm64_linux.s",
+    abi_sheet="abi_arm64_linux.md",
+    feature_baseline="ARMv8.2-A+ (NEON, CRC32, AES/PMULL, DotProd, FP16, LSE; AWS Graviton2/3/4, Ampere Altra)",
+)
+
+X86_64_LINUX = Target(
+    name="x86_64-linux",
+    cc="clang",
+    asm_flags=("-march=x86-64-v3", "-fPIC"),
+    c_flags=("-std=c11", "-fPIC"),
+    baseline_flags=("-O3", "-march=native"),
+    oracle_flags=("-O1",),
+    shared_flags=("-shared", "-fPIC"),
+    dylib_ext=".so",
+    symbol_prefix="",
+    tramp="tramp_x86_64_linux.s",
+    abi_sheet="abi_x86_64_linux.md",
+    feature_baseline="x86-64-v3 (AVX2, BMI1/2, FMA, LZCNT, MOVBE, POPCNT, SSE4.2, PCLMULQDQ)",
+)
+
+TARGETS: Dict[str, Target] = {t.name: t for t in (ARM64_DARWIN, ARM64_LINUX, X86_64_LINUX)}
 
 
 class UnsupportedTarget(Exception):

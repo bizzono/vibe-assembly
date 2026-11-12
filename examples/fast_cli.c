@@ -12,14 +12,7 @@
 #include <string.h>
 #include <time.h>
 
-// Every verified .s file in solutions/arm64-darwin/ obeys the standard C ABI,
-// so a C/C++/Rust/Zig/Go/Swift program calls it with a plain extern prototype:
-extern size_t   wordcount(const uint8_t *buf, size_t len);
-extern int      utf8_validate(const uint8_t *buf, size_t len);
-extern uint32_t crc32_ieee(const uint8_t *buf, size_t len);
-extern size_t   base64_encode(const uint8_t *src, size_t len, uint8_t *dst);
-extern uint64_t mandelbrot(int64_t width, int64_t height, int64_t max_iter);
-extern uint64_t nqueens(int64_t n);
+#include "../include/vibeasm.h"
 
 static double now_ms(void) {
     struct timespec ts;

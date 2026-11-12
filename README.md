@@ -1,5 +1,8 @@
 # vibe-assembly
 
+[![Verify Harness & Solutions](https://github.com/bizzono/vibe-assembly/actions/workflows/ci.yml/badge.svg)](https://github.com/bizzono/vibe-assembly/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 **Let an agent write the assembly. Do not trust a line of it.**
 
 ![vibe-assembly preview](docs/media/preview.gif)
@@ -75,12 +78,19 @@ clang examples/standalone_mandelbrot.s -o /tmp/mandelbrot && /tmp/mandelbrot
 
 ![Standalone ARM64 assembly Mandelbrot output](docs/media/standalone-mandelbrot.svg)
 
-### 3. Drop-in C/Rust/Zig integration (`examples/fast_cli.c`)
+### 3. Drop-in C/C++/CMake/Make SDK integration (`include/vibeasm.h`)
 
-To use the verified assembly kernels inside a larger application, declare their `extern` prototypes and pass `solutions/arm64-darwin/*.s` to the linker ([`examples/fast_cli.c`](examples/fast_cli.c)):
+To embed all 6 verified kernels as a static (`libvibeasm.a`) or shared (`libvibeasm.dylib` / `libvibeasm.so`) library in a C, C++, Rust, or Zig application, include [`include/vibeasm.h`](include/vibeasm.h) and build with `make` or `cmake` (which automatically link `solutions/<target>/*.s` when available and fall back to `tasks/*/ref.c` on other platforms):
 
 ```sh
-clang -O3 examples/fast_cli.c solutions/arm64-darwin/*.s -o /tmp/vibe-demo && /tmp/vibe-demo
+# Build static + shared libraries and run the demo CLI (examples/fast_cli.c)
+make all && ./build/vibe-demo
+
+# Or build and test with CMake
+cmake -B build && cmake --build build && ctest --test-dir build --output-on-failure
+
+# Or link the .s files directly in a single compiler invocation
+clang -O3 -Iinclude examples/fast_cli.c solutions/arm64-darwin/*.s -o /tmp/vibe-demo && /tmp/vibe-demo
 ```
 
 ```
@@ -225,18 +235,32 @@ python3 shootout/chart.py
 
 ---
 
+## Supported targets
+
+| Target | ISA & ABI | Baseline CPU Features | Status |
+|---|---|---|---|
+| `arm64-darwin` | AArch64 Mach-O (Apple AAPCS64) | Apple M1+ (ARMv8.4-A, NEON, CRC32, AES/PMULL, DotProd, SHA3) | **Supported & all 6 tasks solved** |
+| `arm64-linux` | AArch64 ELF (AAPCS64) | ARMv8.2-A+ (NEON, CRC32, AES/PMULL, DotProd, FP16, LSE) | **Supported in harness & CI** |
+| `x86_64-linux` | x86-64 ELF (System V AMD64) | `x86-64-v3` (AVX2, BMI1/2, FMA, LZCNT, POPCNT, PCLMULQDQ) | **Supported in harness & CI** |
+
+---
+
 ## Repository layout
 
 - [`bin/vibeasm`](bin/vibeasm) & [`vibeasm/`](vibeasm/) — CLI and verification/benchmarking harness (Python 3.9+, zero third-party packages).
-- [`vibeasm/kit/`](vibeasm/kit/) — C test/benchmark driver ([`driver.c`](vibeasm/kit/driver.c)) and ARM64 ABI check trampoline ([`tramp_arm64_darwin.s`](vibeasm/kit/tramp_arm64_darwin.s)).
+- [`include/vibeasm.h`](include/vibeasm.h), [`Makefile`](Makefile), [`CMakeLists.txt`](CMakeLists.txt) — Public C/C++ SDK header and static/shared library build definitions (`libvibeasm.a`, `libvibeasm.dylib`/`.so`).
+- [`vibeasm/kit/`](vibeasm/kit/) — C test/benchmark driver ([`driver.c`](vibeasm/kit/driver.c)) and ABI check trampolines ([`tramp_arm64_darwin.s`](vibeasm/kit/tramp_arm64_darwin.s), [`tramp_arm64_linux.s`](vibeasm/kit/tramp_arm64_linux.s), [`tramp_x86_64_linux.s`](vibeasm/kit/tramp_x86_64_linux.s)).
 - [`tasks/`](tasks/) — Task specifications (`SPEC.md`), reference implementations (`ref.c`), input generators (`gen.c`), and benchmark configurations (`task.json`).
 - [`solutions/arm64-darwin/`](solutions/arm64-darwin/) — Verified assembly solutions (`.s`) and their provenance records (`.json`).
 - [`examples/`](examples/) — Runnable standalone ARM64 assembly binary ([`standalone_mandelbrot.s`](examples/standalone_mandelbrot.s)), C application linking all 6 verified `.s` kernels ([`fast_cli.c`](examples/fast_cli.c)), and visual SVG generator ([`make_visuals.py`](examples/make_visuals.py)).
 - [`shootout/`](shootout/) — 12-language benchmark suite (`c`, `asm`, `cpp`, `rust`, `zig`, `go`, `swift`, `java`, `csharp`, `js`, `python`, `ruby`), runner ([`shootout.py`](shootout/shootout.py)), chart generator ([`chart.py`](shootout/chart.py)), and results ([`RESULTS.md`](shootout/results/RESULTS.md)).
 - [`tests/`](tests/) — Harness unit tests ([`test_harness.py`](tests/test_harness.py)) and the [`tests/zoo/`](tests/zoo/) gallery of buggy assembly files that each fail one specific gate.
 - [`video/`](video/) — Remotion project that renders the green-bar line-printer preview from [`video/src/data.json`](video/src/data.json).
-- **Documentation**:
+- **Documentation & Governance**:
   - [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md) — Architecture of the verification gates, trampoline, and round loop.
   - [`docs/WRITING_A_TASK.md`](docs/WRITING_A_TASK.md) — How to add a new assembly task (`bin/vibeasm new`).
-  - [`docs/ADDING_A_TARGET.md`](docs/ADDING_A_TARGET.md) — How to add a new architecture/OS target (`arm64-linux`, `x86_64-linux`, `x86_64-darwin`).
+  - [`docs/ADDING_A_TARGET.md`](docs/ADDING_A_TARGET.md) — How to add a new architecture/OS target.
   - [`shootout/PROTOCOL.md`](shootout/PROTOCOL.md) — Rules and measurement protocol for the 12-language shootout.
+  - [`SECURITY.md`](SECURITY.md) — Security policy, verification threat model, and agent sandboxing.
+  - [`CONTRIBUTING.md`](CONTRIBUTING.md) — Contribution rules, gate invariants, and PR checklist.
+  - [`CHANGELOG.md`](CHANGELOG.md) — Release history.

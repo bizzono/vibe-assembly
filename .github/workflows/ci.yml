@@ -6,18 +6,42 @@ on:
   pull_request:
 
 jobs:
-  verify:
+  verify-macos-arm64:
+    name: arm64-darwin (macOS Apple Silicon)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - name: Check toolchain
         run: bin/vibeasm doctor
-      - name: Run harness test suite
+      - name: Run full harness & zoo test suite
         run: python3 -m unittest discover -s tests -v
-      - name: Verify installed assembly solutions
+      - name: Verify all installed arm64-darwin assembly solutions
         run: bin/vibeasm verify --quick
-      - name: Build and run standalone assembly & C examples
+      - name: Build libvibeasm (Make & CMake) and run examples
         run: |
-          clang examples/standalone_mandelbrot.s -o /tmp/mandelbrot_app && /tmp/mandelbrot_app > /dev/null
-          clang -O3 examples/fast_cli.c solutions/arm64-darwin/*.s -o /tmp/vibe-demo && /tmp/vibe-demo
+          make all && make examples && make clean
+          cmake -B build-cmake && cmake --build build-cmake && ctest --test-dir build-cmake --output-on-failure
 
+  verify-linux:
+    name: ${{ matrix.target }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04-arm
+            target: arm64-linux
+          - os: ubuntu-latest
+            target: x86_64-linux
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang and zlib1g-dev
+        run: sudo apt-get update && sudo apt-get install -y clang binutils zlib1g-dev
+      - name: Check toolchain
+        run: bin/vibeasm doctor
+      - name: Run cross-platform harness test suite
+        run: python3 -m unittest discover -s tests -v
+      - name: Build libvibeasm (Make & CMake) and run demo
+        run: |
+          make all && ./build/vibe-demo && make clean
+          cmake -B build-cmake && cmake --build build-cmake && ctest --test-dir build-cmake --output-on-failure

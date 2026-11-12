@@ -181,9 +181,11 @@ def _demote_headings(md: str) -> str:
 
 def starter(builder: Builder, task: Task) -> str:
     sym = builder.target.symbol_prefix + task.symbol
+    zero_ret = "    xorl    %eax, %eax\n    ret\n" if builder.target.name.startswith("x86_64") else "    mov     x0, #0\n    ret\n"
+    footer = '\n    .section .note.GNU-stack,"",@progbits\n' if builder.target.name.endswith("-linux") else ""
     return ("// %s -- %s\n// %s\n//\n// Starter file: it assembles, but returns immediately. Replace the body.\n"
-            "    .text\n    .globl  %s\n    .p2align 4\n%s:\n    mov     x0, #0\n    ret\n"
-            % (task.name, task.summary, task.signature(), sym, sym))
+            "    .text\n    .globl  %s\n    .p2align 4\n%s:\n%s%s"
+            % (task.name, task.summary, task.signature(), sym, sym, zero_ret, footer))
 
 
 # ---- backends -----------------------------------------------------------------------

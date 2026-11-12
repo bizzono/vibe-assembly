@@ -1,0 +1,25 @@
+name: Bug or Gate Bypass Report
+description: Report a bug in the harness or an assembly snippet that bypassed a verification gate
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug or the verification gate bypass.
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Target & Host OS
+      placeholder: "e.g., arm64-darwin (macOS, Apple M4 Pro) or arm64-linux"
+    validations:
+      required: true
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal Reproducer (.s file or command)
+      render: asm
+    validations:
+      required: true

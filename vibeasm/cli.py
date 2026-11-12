@@ -93,7 +93,8 @@ def cmd_doctor(args) -> int:
     except UnsupportedTarget as e:
         print("  status   " + str(e).replace("\n", "\n           "))
         return 1
-    for tool in (target.cc, "nm", "otool", "objdump"):
+    tools = (target.cc, "nm", "otool", "objdump") if target.name.endswith("-darwin") else (target.cc, "nm", "objdump")
+    for tool in tools:
         path = shutil.which(tool)
         print("  %-8s %s" % (tool, path or "MISSING"))
         ok = ok and bool(path)

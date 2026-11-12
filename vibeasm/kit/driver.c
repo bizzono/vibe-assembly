@@ -34,6 +34,12 @@
 #include <pthread.h>
 #include <pthread/qos.h>
 #include <sys/ucontext.h>
+#elif defined(__linux__)
+#include <ucontext.h>
+#endif
+
+#ifndef MAP_ANON
+#define MAP_ANON MAP_ANONYMOUS
 #endif
 
 #include "va_kit.h"
@@ -247,6 +253,24 @@ static void on_signal(int sig, siginfo_t *si, void *uctx) {
         x[30] = lr;
         have_regs = 1;
     }
+#elif defined(__linux__) && defined(__aarch64__)
+    ucontext_t *uc = (ucontext_t *)uctx;
+    if (uc) {
+        pc = (uintptr_t)uc->uc_mcontext.pc;
+        sp = (uintptr_t)uc->uc_mcontext.sp;
+        for (int i = 0; i < 31; i++) x[i] = uc->uc_mcontext.regs[i];
+        fp = (uintptr_t)x[29];
+        lr = (uintptr_t)x[30];
+        have_regs = 1;
+    }
+#elif defined(__linux__) && defined(__x86_64__)
+    ucontext_t *uc = (ucontext_t *)uctx;
+    if (uc) {
+        pc = (uintptr_t)uc->uc_mcontext.gregs[REG_RIP];
+        sp = (uintptr_t)uc->uc_mcontext.gregs[REG_RSP];
+        fp = (uintptr_t)uc->uc_mcontext.gregs[REG_RBP];
+        have_regs = 1;
+    }
 #else
     (void)uctx;
 #endif
@@ -328,12 +352,20 @@ static void *load_fn(const char *path, const char *symbol) {
 }
 
 static const char *abi_reg_name(int bit) {
+#if defined(__x86_64__)
+    static const char *names[] = {"rbx", "r12", "r13", "r14", "r15"};
+    if (bit < 5) return names[bit];
+    if (bit == 20) return "rsp";
+    if (bit == 21) return "rbp";
+    return "?";
+#else
     static const char *names[] = {"x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28",
                                   "d8",  "d9",  "d10", "d11", "d12", "d13", "d14", "d15"};
     if (bit < 18) return names[bit];
     if (bit == 20) return "sp";
     if (bit == 21) return "x29";
     return "?";
+#endif
 }
 
 static void abi_list(uint64_t viol, char *out, size_t n) {

@@ -37,6 +37,9 @@ FORBIDDEN_MNEMONICS = {
     "eret": "exception return", "hlt": "halt", "wfi": "wait for interrupt", "wfe": "wait for event",
     "smstart": "SME is outside the feature baseline", "smstop": "SME is outside the feature baseline",
     "sys": "system instruction", "sysl": "system instruction",
+    "syscall": "system call", "sysenter": "system call", "int": "software interrupt",
+    "int3": "breakpoint trap", "ud2": "undefined instruction trap",
+    "rdmsr": "model-specific register read", "wrmsr": "model-specific register write",
 }
 
 ALLOWED_SEGMENTS = {"__TEXT", "__DWARF", "__LD"}
@@ -131,13 +134,38 @@ def parse_disassembly(text: str) -> List[Tuple[int, str, str]]:
     return insns
 
 
+def _sections_elf(obj: Path) -> Tuple[int, List[Tuple[str, int]]]:
+    """Return (code_bytes, [(writable_section_name, size), ...]) for an ELF object via objdump -h."""
+    out = must(["objdump", "-h", obj], what="objdump")
+    code_bytes = 0
+    writable: List[Tuple[str, int]] = []
+    cur_sect, cur_size = None, 0
+    for line in out.splitlines():
+        m = re.match(r"^\s*\d+\s+(\S+)\s+([0-9a-fA-F]+)\s+[0-9a-fA-F]+\s+[0-9a-fA-F]+\s+[0-9a-fA-F]+\s+", line)
+        if m:
+            cur_sect, cur_size = m.group(1), int(m.group(2), 16)
+            continue
+        if cur_sect is not None:
+            flags = {f.strip() for f in line.split(",")}
+            if "CODE" in flags or cur_sect.startswith((".text", ".rodata")):
+                code_bytes += cur_size
+            is_writable_name = cur_sect.startswith((".data", ".bss", ".tdata", ".tbss"))
+            is_writable_alloc = ("ALLOC" in flags and "READONLY" not in flags and "CODE" not in flags
+                                 and not cur_sect.startswith((".note", ".eh_frame", ".comment")))
+            if cur_size > 0 and (is_writable_name or is_writable_alloc):
+                writable.append((cur_sect, cur_size))
+            cur_sect = None
+    return code_bytes, writable
+
+
 def lint_object(target: Target, obj: Path, symbol: str, disassembly: str) -> LintResult:
     res = LintResult()
     want = target.symbol_prefix + symbol
 
     # exported / undefined symbols
     try:
-        defined = [l.split() for l in must(["nm", "-g", "-U", obj], what="nm").splitlines() if l.strip()]
+        nm_def_cmd = ["nm", "-g", "-U", obj] if target.name.endswith("-darwin") else ["nm", "-g", "--defined-only", obj]
+        defined = [l.split() for l in must(nm_def_cmd, what="nm").splitlines() if l.strip()]
         undefined = [l.split()[-1] for l in must(["nm", "-u", obj], what="nm").splitlines() if l.strip()]
     except ToolError as e:
         res.errors.append("could not inspect the object file: %s" % e)
@@ -159,15 +187,23 @@ def lint_object(target: Target, obj: Path, symbol: str, disassembly: str) -> Lin
 
     # sections: code and read-only constants only
     try:
-        code_bytes = 0
-        for seg, sect, size in _sections(obj):
-            if seg == "__TEXT":
-                code_bytes += size
-            if seg not in ALLOWED_SEGMENTS and size > 0:
-                res.errors.append("section %s,%s (%d bytes) is writable data. A solution may not keep state: "
-                                  "put constants in `.section __TEXT,__const` and scratch space on the stack."
-                                  % (seg, sect, size))
-        res.info["text_bytes"] = code_bytes
+        if target.name.endswith("-darwin"):
+            code_bytes = 0
+            for seg, sect, size in _sections(obj):
+                if seg == "__TEXT":
+                    code_bytes += size
+                if seg not in ALLOWED_SEGMENTS and size > 0:
+                    res.errors.append("section %s,%s (%d bytes) is writable data. A solution may not keep state: "
+                                      "put constants in `.section __TEXT,__const` and scratch space on the stack."
+                                      % (seg, sect, size))
+            res.info["text_bytes"] = code_bytes
+        else:
+            code_bytes, writable = _sections_elf(obj)
+            for sect, size in writable:
+                res.errors.append("section %s (%d bytes) is writable data. A solution may not keep state: "
+                                  "put constants in `.section .rodata` and scratch space on the stack."
+                                  % (sect, size))
+            res.info["text_bytes"] = code_bytes
     except ToolError as e:
         res.errors.append("could not read section table: %s" % e)
 

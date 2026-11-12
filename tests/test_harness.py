@@ -104,6 +104,7 @@ class HarnessCase(unittest.TestCase):
         self.assertIn(needle, report)
 
 
+@unittest.skipUnless(TARGET and TARGET.name == "arm64-darwin", "zoo uses arm64-darwin Mach-O syntax")
 class TestZoo(HarnessCase):
     """One wordcount implementation per bug class; each must die at the right gate."""
 
@@ -150,6 +151,7 @@ class TestAllTasks(HarnessCase):
                 self.assertTrue(res.ok, res.text())
                 self.assertGreater(res.cases, 100)
 
+    @unittest.skipUnless(TARGET and TARGET.name == "arm64-darwin", "wrapper uses arm64-darwin syntax")
     def test_bytes_to_bytes_bugs(self):
         task = self.task("base64_encode")
         cases = {
@@ -168,6 +170,7 @@ class TestAllTasks(HarnessCase):
                 res = check(self.builder, task, self.write("b64_%s.s" % label, wrap_baseline(self.builder, task, body)))
                 self.assertRejected(res, "fuzz", needle)
 
+    @unittest.skipUnless(TARGET and TARGET.name == "arm64-darwin", "wrapper uses arm64-darwin syntax")
     def test_ints_bugs(self):
         task = self.task("nqueens")
         wrong = CALL_INNER + "    cmp     x0, #40\n    cinc    x0, x0, eq\n    ret"   # nqueens(7) == 40
@@ -178,6 +181,7 @@ class TestAllTasks(HarnessCase):
         res = check(self.builder, task, self.write("nq_abi.s", wrap_baseline(self.builder, task, clobber)))
         self.assertRejected(res, "fuzz", "not preserved: x27")
 
+    @unittest.skipUnless(TARGET and TARGET.name == "arm64-darwin", "wrapper uses arm64-darwin syntax")
     def test_answer_table_is_refused(self):
         task = self.task("nqueens")
         cheat = "    cmp     x0, #12\n    b.ne    1f\n    mov     x0, #14200\n    ret\n1:\n" + CALL_INNER + "    ret"
@@ -192,7 +196,7 @@ class TestAllTasks(HarnessCase):
                     brief = build_brief(self.builder, task, agentic=agentic)
                     self.assertNotRegex(brief, r"\{[a-z_]+\}", "unfilled placeholder in the brief")
                     self.assertIn(task.signature(), brief)
-                    self.assertIn("_" + task.symbol, brief)
+                    self.assertIn(self.builder.target.symbol_prefix + task.symbol, brief)
                     self.assertEqual("vibeasm bench" in brief, agentic)
 
 
@@ -215,6 +219,7 @@ class TestLint(unittest.TestCase):
         self.assertEqual(extract_code_block("no code here"), "")
 
 
+@unittest.skipUnless(TARGET and TARGET.name == "arm64-darwin", "mock agent uses arm64-darwin zoo files")
 class TestLoop(HarnessCase):
     """The round loop with a scripted agent: a rejected round must produce feedback, and
     a later correct round must be accepted on the harness's own verification."""
@@ -256,6 +261,7 @@ class TestLoop(HarnessCase):
         self.assertGreater(v.cases, 10000)
 
 
+@unittest.skipUnless(TARGET and TARGET.name == "arm64-darwin", "mock agent uses arm64-darwin zoo files")
 class TestLoopRecovery(HarnessCase):
     """Resuming a run, and a winner that fails its final verification."""
 
@@ -409,12 +415,14 @@ class TestCli(HarnessCase):
         return subprocess.run([sys.executable, str(ROOT / "bin" / "vibeasm"), *args], capture_output=True,
                               text=True, env=e, cwd=cwd)
 
+    @unittest.skipUnless(TARGET and TARGET.name == "arm64-darwin", "zoo uses arm64-darwin Mach-O syntax")
     def test_check_exit_codes(self):
         self.assertEqual(self.vibeasm("check", "wordcount", str(ZOO / "ok_scalar.s")).returncode, 0)
         p = self.vibeasm("check", "wordcount", str(ZOO / "bad_wrong_result.s"))
         self.assertEqual(p.returncode, 1)
         self.assertIn("FAIL", p.stdout)
 
+    @unittest.skipUnless(TARGET and TARGET.name == "arm64-darwin", "zoo uses arm64-darwin Mach-O syntax")
     def test_call(self):
         p = self.vibeasm("call", "wordcount", str(ZOO / "ok_scalar.s"), "--text", "the quick\\tbrown\\nfox")
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
@@ -423,6 +431,7 @@ class TestCli(HarnessCase):
         self.assertEqual(p.returncode, 1)
         self.assertIn("DIFF", p.stdout)
 
+    @unittest.skipUnless(TARGET and TARGET.name == "arm64-darwin", "zoo uses arm64-darwin Mach-O syntax")
     def test_call_with_a_generated_input(self):
         p = self.vibeasm("call", "wordcount", str(ZOO / "bad_real_lane_overflow.s"), "--gen", "16177", "--flavor", "4")
         self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
@@ -451,8 +460,9 @@ class TestCli(HarnessCase):
         self.assertEqual(p.returncode, 0, p.stderr)
         for f in ("TASK.md", "ABI.md", "ref.c", "baseline.s", "solution.s", "NOTES.md", "SPEC.md"):
             self.assertTrue((work / f).exists(), f)
-        # whatever `work` seeded solution.s with, a function that just returns 0 must fail here
-        (work / "solution.s").write_text("    .text\n    .globl _crc32_ieee\n_crc32_ieee:\n    mov x0, #0\n    ret\n")
+        # whatever `work` seeded solution.s with, a starter function that just returns 0 must fail here
+        from vibeasm.agent import starter
+        (work / "solution.s").write_text(starter(self.builder, self.task("crc32")))
         p = self.vibeasm("check", cwd=str(work))       # no task argument: the directory implies it
         self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
         self.assertIn("wrong result", p.stdout)

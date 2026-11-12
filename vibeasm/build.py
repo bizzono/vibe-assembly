@@ -56,8 +56,9 @@ class Builder:
         d = self._dir("driver-" + task.name, self._kit_bytes() + [task.gen_path.read_bytes(), task.shape.encode()])
         exe = d / "driver"
         if not exe.exists():
+            ld = ["-ldl"] if self.target.name.endswith("-linux") else []
             must([self.target.cc, *self.target.c_flags, "-O2", "-DVA_SHAPE=%d" % task.shape_id, "-I", KIT,
-                  KIT / "driver.c", KIT / self.target.tramp, task.gen_path, "-o", exe],
+                  KIT / "driver.c", KIT / self.target.tramp, task.gen_path, "-o", exe, *ld],
                  what="building the test driver for task '%s' (check gen.c)" % task.name)
         return exe
 
@@ -78,18 +79,21 @@ class Builder:
 
     def baseline_asm(self, task: Task) -> str:
         """What the optimizing compiler makes of ref.c -- the assembly a solution has to beat."""
+        import re
         flags = list(self.target.baseline_flags) + task.cflags
         d = self._dir("baseline-asm-" + task.name, [task.ref_path.read_bytes(), " ".join(flags).encode()])
         out = d / "baseline.s"
         if not out.exists():
             must([self.target.cc, *self.target.c_flags, *flags, "-S", "-fno-asynchronous-unwind-tables",
                   task.ref_path, "-o", out], what="compiling ref.c of task '%s'" % task.name)
+            cleaned = re.sub(r"^\s*\.(?:arch|arch_extension|cpu)\b.*$\n?", "", out.read_text(), flags=re.M)
+            out.write_text(cleaned)
         return out.read_text()
 
     def rival(self, task: Task, spec: dict) -> Path:
         """An expert implementation to time against (e.g. the system zlib). Not linted, not trusted."""
         src = task.dir / spec["source"]
-        flags = ["-O3", "-mcpu=native"] + list(spec.get("cflags", []))
+        flags = list(self.target.baseline_flags) + list(spec.get("cflags", []))
         ld = list(spec.get("ldflags", []))
         d = self._dir("rival-%s-%s" % (task.name, spec["name"]), [src.read_bytes(), " ".join(flags + ld).encode()])
         lib = d / ("rival" + self.target.dylib_ext)
