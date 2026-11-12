@@ -392,7 +392,8 @@ class CommandAgent:
             if block:
                 (workdir / "solution.s").write_text(block)
         if p.returncode != 0 and after == before and not extract_code_block(p.stdout):
-            return AgentResult(False, error="agent command failed (exit %d): %s" % (p.returncode, p.stderr.strip()[-400:]),
+            detail = (p.stderr.strip() or p.stdout.strip())[-400:]
+            return AgentResult(False, error="agent command failed (exit %d): %s" % (p.returncode, detail),
                                seconds=time.time() - t0)
         return AgentResult(True, message=p.stdout.strip()[-2000:], seconds=time.time() - t0)
 

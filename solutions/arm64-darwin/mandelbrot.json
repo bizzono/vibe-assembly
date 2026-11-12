@@ -1,0 +1,55 @@
+{
+  "task": "mandelbrot",
+  "symbol": "mandelbrot",
+  "target": "arm64-darwin",
+  "score": 6.715,
+  "score_is": "geometric mean speed-up over the benchmark cases; baseline = 1.0",
+  "baseline": "clang -O3 -mcpu=native on ref.c",
+  "cases": [
+    {
+      "name": "64x64, 50 iter",
+      "baseline_ns": 66404.714,
+      "solution_ns": 15754.032,
+      "speedup": 4.215
+    },
+    {
+      "name": "256x256, 200 iter",
+      "baseline_ns": 4859458.0,
+      "solution_ns": 587125.0,
+      "speedup": 8.277
+    },
+    {
+      "name": "512x512, 200 iter",
+      "baseline_ns": 19493917.0,
+      "solution_ns": 2246333.0,
+      "speedup": 8.678
+    }
+  ],
+  "verified": {
+    "profile": "full",
+    "test_cases": 6000,
+    "seeds": [
+      1010371406,
+      1666399011
+    ],
+    "instructions": 142,
+    "text_bytes": 568
+  },
+  "sha256": "9cb97e737e668252cbd48b358b1a905a8a501ab06e62f823e0da06db8c937eec",
+  "agent": {
+    "backend": "claude",
+    "model": "claude-fable-5-2",
+    "rounds": 1,
+    "cost_usd": 2.6,
+    "turns": 40,
+    "minutes": 7.6
+  },
+  "harness": "vibe-assembly 0.1.0",
+  "host": {
+    "target": "arm64-darwin",
+    "cpu": "Apple M4 Pro",
+    "os": "macOS 26.7.3",
+    "cc": "Apple clang version 21.0.0 (clang-2100.1.1.101)"
+  },
+  "date": "2026-11-11"
+}

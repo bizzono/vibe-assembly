@@ -245,6 +245,7 @@ def run_task(builder: Builder, task: Task, agent, *, rounds: int = 3, fresh: boo
             prepare_workdir(builder, task, work, agentic=agentic, feedback=feedback, best=best_path,
                             best_score=best_score or None, seed_solution=seed_solution)
             shutil.copyfile(work / "TASK.md", rdir / "brief.md")
+            before_sol = (work / "solution.s").read_bytes() if (work / "solution.s").exists() else None
             say("\nround %d/%d: agent working in %s" % (r, last, work))
             t0 = time.time()
             ares: AgentResult = agent.run(work, builder.root, rdir / "agent.log", on_event=say)
@@ -267,6 +268,16 @@ def run_task(builder: Builder, task: Task, agent, *, rounds: int = 3, fresh: boo
                 if not ares.ok and "not found" in ares.error:
                     break
                 continue
+            if not ares.ok and ares.error:
+                say("  agent error: %s" % ares.error.splitlines()[0][:140])
+                if before_sol is not None and sol.read_bytes() == before_sol:
+                    entry.update(verified=False, verdict="agent failed without modifying solution.s")
+                    save()
+                    err_low = ares.error.lower()
+                    if any(w in err_low for w in ("not found", "spend limit", "usage limit", "rate limit", "quota")):
+                        result.message = "agent stopped: " + ares.error.splitlines()[0][:140]
+                        break
+                    continue
             snap = rdir / "solution.s"
             shutil.copyfile(sol, snap)
 

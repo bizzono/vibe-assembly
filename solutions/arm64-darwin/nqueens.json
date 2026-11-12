@@ -1,0 +1,55 @@
+{
+  "task": "nqueens",
+  "symbol": "nqueens",
+  "target": "arm64-darwin",
+  "score": 2.118,
+  "score_is": "geometric mean speed-up over the benchmark cases; baseline = 1.0",
+  "baseline": "clang -O3 -mcpu=native on ref.c",
+  "cases": [
+    {
+      "name": "n=8",
+      "baseline_ns": 3275.122,
+      "solution_ns": 1321.056,
+      "speedup": 2.479
+    },
+    {
+      "name": "n=10",
+      "baseline_ns": 64416.667,
+      "solution_ns": 25833.333,
+      "speedup": 2.494
+    },
+    {
+      "name": "n=12",
+      "baseline_ns": 3662041.0,
+      "solution_ns": 2381625.0,
+      "speedup": 1.538
+    }
+  ],
+  "verified": {
+    "profile": "full",
+    "test_cases": 2400,
+    "seeds": [
+      846264184,
+      27485627
+    ],
+    "instructions": 191,
+    "text_bytes": 764
+  },
+  "sha256": "233601fc8058042cec73303d1bc2b37990c21a832a98d194808bedfdc57792be",
+  "agent": {
+    "backend": "antigravity",
+    "model": "gemini-4-argon",
+    "rounds": 0,
+    "cost_usd": 0,
+    "turns": 0,
+    "minutes": 0
+  },
+  "harness": "vibe-assembly 0.1.0",
+  "host": {
+    "target": "arm64-darwin",
+    "cpu": "Apple M4 Pro",
+    "os": "macOS 26.7.3",
+    "cc": "Apple clang version 21.0.0 (clang-2100.1.1.101)"
+  },
+  "date": "2026-11-11"
+}

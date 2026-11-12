@@ -316,6 +316,24 @@ class TestLoopRecovery(HarnessCase):
         self.assertIn("Final verification -- REJECTED", notes)
         self.assertEqual(res.rounds[-1]["round"], "final")
 
+    def test_agent_spend_limit_stops_without_judging_untouched_baseline(self):
+        from unittest import mock as umock
+        import vibeasm.loop as loop
+
+        root = self.private_root("quota-root")
+        builder = Builder(root, TARGET)
+        task = load_task(root, "wordcount")
+        agent = CommandAgent("sh -c 'cat >/dev/null; echo \"You have hit your spend limit\"; exit 1'")
+        lines = []
+        with umock.patch.object(loop, "judge", side_effect=AssertionError("judge must not run on untouched baseline")):
+            res = run_task(builder, task, agent, rounds=3, fresh=True, do_install=False, say=lines.append)
+        self.assertFalse(res.ok)
+        self.assertEqual(len(res.rounds), 1, "fatal quota error must stop the round loop early")
+        self.assertFalse(res.rounds[0]["agent_ok"])
+        self.assertFalse(res.rounds[0]["verified"])
+        self.assertIn("spend limit", res.rounds[0]["agent_error"])
+        self.assertTrue(any("agent error:" in ln and "spend limit" in ln for ln in lines))
+
 
 FAKE_CLAUDE = """#!/bin/sh
 # stands in for `claude -p ... --output-format stream-json`: emits the event shapes the

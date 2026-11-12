@@ -1,0 +1,18 @@
+name: Verify Harness & Solutions
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check toolchain
+        run: bin/vibeasm doctor
+      - name: Run harness test suite
+        run: python3 -m unittest discover -s tests -v
+      - name: Verify installed assembly solutions
+        run: bin/vibeasm verify --quick

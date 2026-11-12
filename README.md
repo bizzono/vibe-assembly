@@ -1,0 +1,174 @@
+# vibe-assembly
+
+**Let an agent write the assembly. Do not trust a line of it.**
+
+![vibe-assembly preview](docs/media/preview.gif)
+
+Language models know the instruction set manuals cold—NEON permute tables, polynomial multiply instructions, carryless reductions, branchless bit tricks—and they will cheerfully hand you a routine with a subtle lane overflow at byte 16,177 or a clobbered callee-saved register on an early-exit branch.
+
+`vibe-assembly` is a zero-dependency verification and benchmarking harness that puts an LLM agent in a tight feedback loop with an adversarial C/assembly referee:
+
+1. **Five verification gates** stand between a candidate `.s` file and the benchmark timer: static source lint, object symbol hygiene, an assembly ABI trampoline that poisons caller-saved registers and checks every callee-saved register (plus red-zone and stack alignment), `mmap` guard pages on both ends of every input/output buffer, and differential fuzzing across hundreds of thousands of inputs.
+2. **Hold-out seeds** keep the agent honest: the seeds used while the agent iterates inside `vibeasm check` are never the seeds used by the round judge (`vibeasm run`), and a winning candidate must pass a final full verification pass with fresh seeds before it can enter `solutions/`.
+3. **Head-to-head timing** measures the verified assembly against `clang -O3 -mcpu=native` across the task's size sweep, and `shootout/` times the exact same six kernels across **12 languages** under a single protocol.
+
+---
+
+## Verified results (`arm64-darwin`, Apple M4 Pro)
+
+Every solution in [`solutions/arm64-darwin/`](solutions/arm64-darwin/) was accepted by the harness against `clang -O3 -mcpu=native` (`Apple clang 21.0.0`):
+
+| Task | Kernel | vs `clang -O3 -mcpu=native` | Largest case | Hold-out test cases | Instructions | Technique |
+|---|---|---:|---:|---:|---:|---|
+| [`crc32`](tasks/crc32/SPEC.md) | IEEE 802.3 CRC-32 | **88.06x** | 199.8x (1 MiB) | 194,820 | 450 | 12-way `pmull`/`pmull2` folding + `crc32cb`/`crc32cx` |
+| [`wordcount`](tasks/wordcount/SPEC.md) | ASCII whitespace word count | **20.55x** | 25.7x (4 MiB) | 266,383 | 135 | NEON `tbl` whitespace bitmap + `saba` 255-chunk accumulator |
+| [`utf8_validate`](tasks/utf8_validate/SPEC.md) | RFC 3629 UTF-8 validation | **11.77x** | 39.5x (1 MiB) | 302,144 | 275 | Keiser–Lemire 3-table NEON `tbl` DFA + ASCII fast path |
+| [`mandelbrot`](tasks/mandelbrot/SPEC.md) | Escape-time Mandelbrot sum | **6.71x** | 8.7x (512×512) | 6,000 | 142 | `float64x2_t` 2-row×2-col unroll + cardioid/bulb rejection |
+| [`base64_encode`](tasks/base64_encode/SPEC.md) | RFC 4648 Base64 encode | **4.79x** | 5.8x (1 MiB) | 194,840 | 141 | `ld3` deinterleave + 6-bit split + 64-byte `tbl` alphabet lookup |
+| [`nqueens`](tasks/nqueens/SPEC.md) | Exact $N$-Queens count | **2.12x** | 2.5x ($N=10$) | 2,400 | 191 | Half-board symmetry + 2-level unroll + register-resident DFS |
+
+Provenance records (exact per-case timings, SHA-256 hashes, verification seeds, and agent metadata) sit next to each `.s` file in [`solutions/arm64-darwin/`](solutions/arm64-darwin/).
+
+---
+
+## 12-language shootout
+
+The same six kernels implemented idioms-first across 12 languages and timed on the same machine under [`shootout/PROTOCOL.md`](shootout/PROTOCOL.md) (minimum per-call time after warm-up; lower is better; multiplier is relative to Assembly):
+
+![12-language shootout chart](docs/media/shootout.svg)
+
+| Language | Word count (8 MiB) | UTF-8 validate (8 MiB) | CRC-32 (8 MiB) | Base64 encode (6 MiB) | Mandelbrot (512×512) | N-queens ($N=12$) | Geomean vs asm |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **Assembly** | **120 us** | **366 us** | **76 us** | **257 us** | **2.17 ms** | **2.26 ms** | **1.0x** |
+| **Rust** | 1.56 ms (13.0x) | 14.55 ms (39.7x) | 15.77 ms (208.1x) | 1.46 ms (5.7x) | 18.84 ms (8.7x) | 3.53 ms (1.6x) | **14.2x** |
+| **C++** | 1.59 ms (13.2x) | 14.48 ms (39.5x) | 15.76 ms (207.9x) | 1.50 ms (5.8x) | 18.88 ms (8.7x) | 3.63 ms (1.6x) | **14.4x** |
+| **C** | 1.61 ms (13.4x) | 15.18 ms (41.4x) | 15.50 ms (204.6x) | 1.50 ms (5.8x) | 18.98 ms (8.8x) | 3.64 ms (1.6x) | **14.5x** |
+| **Zig** | 2.62 ms (21.8x) | 15.31 ms (41.8x) | 15.72 ms (207.4x) | 1.51 ms (5.9x) | 18.41 ms (8.5x) | 3.62 ms (1.6x) | **15.7x** |
+| **Swift** | 9.83 ms (81.8x) | 15.44 ms (42.1x) | 17.83 ms (235.2x) | 1.50 ms (5.9x) | 19.23 ms (8.9x) | 3.59 ms (1.6x) | **20.2x** |
+| **Go** | 9.25 ms (77.0x) | 15.40 ms (42.0x) | 16.85 ms (222.4x) | 1.57 ms (6.1x) | 18.97 ms (8.8x) | 4.01 ms (1.8x) | **20.2x** |
+| **C#** | 8.62 ms (71.7x) | 15.37 ms (41.9x) | 16.99 ms (224.2x) | 2.19 ms (8.5x) | 19.36 ms (8.9x) | 3.50 ms (1.5x) | **20.7x** |
+| **Java** | 9.12 ms (76.0x) | 17.07 ms (46.6x) | 17.93 ms (236.6x) | 2.08 ms (8.1x) | 17.81 ms (8.2x) | 3.60 ms (1.6x) | **21.1x** |
+| **JavaScript** | 11.04 ms (92.0x) | 17.70 ms (48.3x) | 14.85 ms (195.9x) | 3.85 ms (15.0x) | 19.30 ms (8.9x) | 6.41 ms (2.8x) | **26.3x** |
+| **Ruby** | 133 ms (1109.3x) | 342 ms (932.2x) | 135 ms (1782.7x) | 370 ms (1440.7x) | 856 ms (395.4x) | 10.77 ms (4.8x) | **413.6x** |
+| **Python** | 137 ms (1137.3x) | 139 ms (380.4x) | 451 ms (5950.3x) | 389 ms (1515.0x) | 469 ms (216.6x) | 105 ms (46.3x) | **582.6x** |
+
+Full cold-start and warm-loop tables, toolchain versions, and methodology are in [`shootout/results/RESULTS.md`](shootout/results/RESULTS.md) and [`shootout/PROTOCOL.md`](shootout/PROTOCOL.md).
+
+---
+
+## Why the gates matter: a real catch
+
+During the first autonomous run on `wordcount` ([`docs/logs/wordcount-first-run.log`](docs/logs/wordcount-first-run.log)), the agent wrote a NEON routine that classified 64 bytes per iteration and accumulated per-lane word-start counts in unsigned byte lanes (`v24.16b`), flushing them to 64-bit integers every 255 iterations.
+
+It was **20.61x** faster than `clang -O3`. It passed all 23,112 quick-check test cases in round 1.
+
+Then the harness ran final verification with fresh hold-out seeds and rejected it before installation:
+
+```
+final verification of the winner (new seeds) before installing...
+the best candidate failed final verification: wrong result on test case #11499
+```
+
+Why did it fail at length 16,177?
+- $255 \text{ iterations} \times 64 \text{ bytes} = 16{,}320 \text{ bytes}$.
+- Each iteration could add up to 4 to a byte lane (`saba`), so a lane could overflow 255 after just $\lfloor 255 / 4 \rfloor = 63$ iterations ($4{,}032$ bytes) of dense alternating words.
+- Even when flushing every 63 iterations, the initial `sub v24.16b, v24.16b, v16.16b` seeded each lane with `1` (`-1 == +1`), so $1 + 63 \times 4 = 253$, plus the loop tail's extra 4 overflowed `257 -> 1` on inputs of dense `a a a a ...` right around 16 KiB.
+
+Because the harness dumped the failing input and handed the counterexample back to round 2, the agent diagnosed the exact byte-lane saturation math with `vibeasm call --gen 16177 --flavor 4`, reduced the inner batch limit to 62 iterations, and passed all **266,383** hold-out test cases at **20.55x**.
+
+Every bug class the harness is built to catch—callee-saved register clobbers, stack misalignment, red-zone scribbles, one-byte buffer overreads, one-byte buffer overwrites, sign-extended length bugs, and SIMD lane overflows—has a dedicated regression test in [`tests/zoo/`](tests/zoo/).
+
+---
+
+## How the five gates work
+
+Every candidate `.s` file must clear five gates in order (see [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md) for the full design):
+
+1. **Source lint (`vibeasm/lint.py`)**: Rejects forbidden instructions (`svc`, `brk`, `hlt`), external calls (`bl`/`blr` to symbols outside the file), mutable data sections (`.data`, `.bss`, `.comm`), and hardcoded task answers.
+2. **Object symbol check (`nm`)**: Assembles the candidate and inspects the object file with `nm` to ensure it defines the task symbol and has zero undefined (`U`) symbols.
+3. **ABI & register-file trampoline (`vibeasm/kit/tramp_arm64_darwin.s`)**: Wraps every call to the candidate function:
+   - Snapshots callee-saved registers `x19`–`x29`, `sp`, and `d8`–`d15`.
+   - Poisons caller-saved general and NEON registers (`x6`–`x17`, `v0`–`v7`, `v16`–`v31`) with a deterministic canary pattern so uninitialized register reads fail immediately.
+   - Paints 128 bytes below `sp` and verifies the candidate leaves `sp`, `x19`–`x29`, and the lower 64 bits of `v8`–`v15` bit-for-bit intact.
+4. **Page-guarded memory arenas (`vibeasm/kit/driver.c`)**: Places every input buffer and output buffer in a two-page `mmap` region with `PROT_NONE` guard pages before and after, testing both right-aligned (one byte before the trailing unmapped page) and left-aligned (one byte after the leading unmapped page) placements, plus canary bytes around outputs.
+5. **Differential fuzzing (`ref.c` + `gen.c`)**: Compares the candidate's return value and output buffer against the C reference implementation across edge cases (length 0, 1, 15, 16, 17, 31, 32, 63, 64, 4095, 4096, ...) and thousands of pseudorandom inputs across every task flavor and alignment offset `0..15`.
+
+---
+
+## Quick start
+
+Requirements: macOS on Apple Silicon (`arm64-darwin`), Python 3.9+ (standard library only), and the Xcode Command Line Tools (`clang`, `nm`, `otool`).
+
+```sh
+# 1. Check your local toolchain
+bin/vibeasm doctor
+
+# 2. List all tasks and their installed scores
+bin/vibeasm list
+
+# 3. Re-verify and re-time every installed solution in solutions/
+bin/vibeasm verify --quick
+```
+
+### Interactive workflow (for an agent or human in a work directory)
+
+```sh
+# Set up runs/<task>/manual/work with TASK.md, ABI.md, ref.c, baseline.s, solution.s
+bin/vibeasm work wordcount
+
+# Inside the work directory, assemble + run all 5 verification gates
+bin/vibeasm check wordcount runs/wordcount/manual/work/solution.s
+
+# Probe a single input (literal text, hex, file, or generator size/flavor)
+bin/vibeasm call wordcount runs/wordcount/manual/work/solution.s --text "hello world"
+bin/vibeasm call wordcount runs/wordcount/manual/work/solution.s --gen 16177 --flavor 4
+
+# Verify and benchmark side-by-side against clang -O3 -mcpu=native
+bin/vibeasm bench wordcount runs/wordcount/manual/work/solution.s
+
+# Run full hold-out verification + 101-sample timing and install into solutions/
+bin/vibeasm accept wordcount runs/wordcount/manual/work/solution.s
+```
+
+### Autonomous multi-round agent loop
+
+```sh
+# Run a headless Claude Code agent (confined to the work directory) for up to 4 rounds
+bin/vibeasm run wordcount --rounds 4
+
+# Or use any command-line model/agent script that reads TASK.md on stdin
+bin/vibeasm run wordcount --agent cmd --agent-cmd "my-agent-wrapper"
+```
+
+---
+
+## Running the test suite and shootout
+
+```sh
+# Run the harness's own test suite (zoo regression tests, ABI checks, round-loop recovery)
+python3 -m unittest discover -s tests -v
+
+# Smoke-test all 12 languages x 6 kernels in the shootout
+python3 shootout/shootout.py --quick --no-write
+
+# Run the full 12-language shootout and regenerate the SVG chart
+python3 shootout/shootout.py
+python3 shootout/chart.py
+```
+
+---
+
+## Repository layout
+
+- [`bin/vibeasm`](bin/vibeasm) & [`vibeasm/`](vibeasm/) — CLI and verification/benchmarking harness (Python 3.9+, zero third-party packages).
+- [`vibeasm/kit/`](vibeasm/kit/) — C test/benchmark driver ([`driver.c`](vibeasm/kit/driver.c)) and ARM64 ABI check trampoline ([`tramp_arm64_darwin.s`](vibeasm/kit/tramp_arm64_darwin.s)).
+- [`tasks/`](tasks/) — Task specifications (`SPEC.md`), reference implementations (`ref.c`), input generators (`gen.c`), and benchmark configurations (`task.json`).
+- [`solutions/arm64-darwin/`](solutions/arm64-darwin/) — Verified assembly solutions (`.s`) and their provenance records (`.json`).
+- [`shootout/`](shootout/) — 12-language benchmark suite (`c`, `asm`, `cpp`, `rust`, `zig`, `go`, `swift`, `java`, `csharp`, `js`, `python`, `ruby`), runner ([`shootout.py`](shootout/shootout.py)), chart generator ([`chart.py`](shootout/chart.py)), and results ([`RESULTS.md`](shootout/results/RESULTS.md)).
+- [`tests/`](tests/) — Harness unit tests ([`test_harness.py`](tests/test_harness.py)) and the [`tests/zoo/`](tests/zoo/) gallery of buggy assembly files that each fail one specific gate.
+- [`video/`](video/) — Remotion project that renders the green-bar line-printer preview from [`video/src/data.json`](video/src/data.json).
+- **Documentation**:
+  - [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md) — Architecture of the verification gates, trampoline, and round loop.
+  - [`docs/WRITING_A_TASK.md`](docs/WRITING_A_TASK.md) — How to add a new assembly task (`bin/vibeasm new`).
+  - [`docs/ADDING_A_TARGET.md`](docs/ADDING_A_TARGET.md) — How to add a new architecture/OS target (`arm64-linux`, `x86_64-linux`, `x86_64-darwin`).
+  - [`shootout/PROTOCOL.md`](shootout/PROTOCOL.md) — Rules and measurement protocol for the 12-language shootout.

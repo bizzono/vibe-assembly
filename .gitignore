@@ -2,7 +2,10 @@
 runs/
 __pycache__/
 *.pyc
+*.o
 .toolchains/
 node_modules/
+npm-install.log
+video/out/
 .DS_Store
 .vibeasm-fail/

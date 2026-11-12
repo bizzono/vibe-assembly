@@ -1,5 +1,5 @@
 {
- "draft": true,
+ "draft": false,
  "story": [
   {
    "kind": "cmd",
@@ -72,6 +72,51 @@
  ],
  "solutions": [
   {
+   "task": "base64_encode",
+   "score": 4.786,
+   "cases": 194840,
+   "rounds": 1,
+   "minutes": 5.6,
+   "cost_usd": 1.33,
+   "model": "claude-fable-5-2"
+  },
+  {
+   "task": "crc32",
+   "score": 88.057,
+   "cases": 194820,
+   "rounds": 1,
+   "minutes": 8.6,
+   "cost_usd": 3.24,
+   "model": "claude-fable-5-2"
+  },
+  {
+   "task": "mandelbrot",
+   "score": 6.715,
+   "cases": 6000,
+   "rounds": 1,
+   "minutes": 7.6,
+   "cost_usd": 2.6,
+   "model": "claude-fable-5-2"
+  },
+  {
+   "task": "nqueens",
+   "score": 2.118,
+   "cases": 2400,
+   "rounds": 0,
+   "minutes": 0,
+   "cost_usd": 0,
+   "model": "gemini-4-argon"
+  },
+  {
+   "task": "utf8_validate",
+   "score": 11.77,
+   "cases": 302144,
+   "rounds": 1,
+   "minutes": 14.5,
+   "cost_usd": 4.8,
+   "model": "claude-fable-5-2"
+  },
+  {
    "task": "wordcount",
    "score": 20.549,
    "cases": 266383,
@@ -87,62 +132,62 @@
    {
     "lang": "asm",
     "name": "Assembly",
-    "ratio": 1
-   },
-   {
-    "lang": "zig",
-    "name": "Zig",
-    "ratio": 4.1
-   },
-   {
-    "lang": "c",
-    "name": "C",
-    "ratio": 4.4
-   },
-   {
-    "lang": "c++",
-    "name": "C++",
-    "ratio": 4.4
+    "ratio": 1.0
    },
    {
     "lang": "rust",
     "name": "Rust",
-    "ratio": 4.6
+    "ratio": 14.234
+   },
+   {
+    "lang": "cpp",
+    "name": "C++",
+    "ratio": 14.391
+   },
+   {
+    "lang": "c",
+    "name": "C",
+    "ratio": 14.528
+   },
+   {
+    "lang": "zig",
+    "name": "Zig",
+    "ratio": 15.727
    },
    {
     "lang": "swift",
     "name": "Swift",
-    "ratio": 5.9
+    "ratio": 20.151
    },
    {
     "lang": "go",
     "name": "Go",
-    "ratio": 7.2
+    "ratio": 20.221
+   },
+   {
+    "lang": "csharp",
+    "name": "C#",
+    "ratio": 20.746
    },
    {
     "lang": "java",
     "name": "Java",
-    "ratio": 8.8
+    "ratio": 21.132
    },
    {
-    "lang": "c#",
-    "name": "C#",
-    "ratio": 9.5
-   },
-   {
-    "lang": "javascript",
+    "lang": "js",
     "name": "JavaScript",
-    "ratio": 14.0
-   },
-   {
-    "lang": "python",
-    "name": "Python",
-    "ratio": 410.0
+    "ratio": 26.284
    },
    {
     "lang": "ruby",
     "name": "Ruby",
-    "ratio": 520.0
+    "ratio": 413.6
+   },
+   {
+    "lang": "python",
+    "name": "Python",
+    "ratio": 582.574
    }
   ]
  },
@@ -150,34 +195,34 @@
   {
    "key": "wordcount",
    "title": "Word count",
-   "vs_c": 20.6
+   "vs_c": 13.43
   },
   {
    "key": "utf8_validate",
    "title": "UTF-8 validation",
-   "vs_c": 9.9
+   "vs_c": 41.44
   },
   {
    "key": "crc32",
    "title": "CRC-32",
-   "vs_c": 9.9
+   "vs_c": 204.56
   },
   {
    "key": "base64_encode",
    "title": "Base64 encode",
-   "vs_c": 9.9
+   "vs_c": 5.85
   },
   {
    "key": "mandelbrot",
    "title": "Mandelbrot",
-   "vs_c": 9.9
+   "vs_c": 8.76
   },
   {
    "key": "nqueens",
    "title": "N-queens",
-   "vs_c": 1.1
+   "vs_c": 1.61
   }
  ],
- "host": "DRAFT",
- "date": "DRAFT"
+ "host": "Apple M4 Pro, macOS 26.7.3",
+ "date": "2026-11-11"
 }

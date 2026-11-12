@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 542" width="880" height="542" role="img" aria-labelledby="t d" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace">
+<title id="t">Time for one call compared with the agent-written assembly</title>
+<desc id="d">Assembly 1.0x; Rust 14x; C++ 14x; C 15x; Zig 16x; Swift 20x; Go 20x; C# 21x; Java 21x; JavaScript 26x; Ruby 414x; Python 583x</desc>
+<rect width="880" height="542" fill="#f3f5ec"/>
+<rect x="0" y="60" width="880" height="60" fill="#d9e8d2"/>
+<rect x="0" y="180" width="880" height="60" fill="#d9e8d2"/>
+<rect x="0" y="300" width="880" height="60" fill="#d9e8d2"/>
+<rect x="0" y="420" width="880" height="60" fill="#d9e8d2"/>
+<rect x="0" y="540" width="880" height="60" fill="#d9e8d2"/>
+<text x="28" y="40" font-size="19" font-weight="600" fill="#1e2622">Time for one call, compared with the assembly</text>
+<text x="28" y="64" font-size="13" fill="#5c675f">geometric mean over 6 kernels, same algorithm in every language. Shorter is faster. Log scale.</text>
+<line x1="150.0" x2="150.0" y1="88" y2="462" stroke="#bccab8" stroke-width="1"/>
+<text x="150.0" y="480" font-size="12" fill="#5c675f" text-anchor="middle">1x</text>
+<line x1="213.6" x2="213.6" y1="88" y2="462" stroke="#bccab8" stroke-width="1"/>
+<text x="213.6" y="480" font-size="12" fill="#5c675f" text-anchor="middle">2x</text>
+<line x1="297.7" x2="297.7" y1="88" y2="462" stroke="#bccab8" stroke-width="1"/>
+<text x="297.7" y="480" font-size="12" fill="#5c675f" text-anchor="middle">5x</text>
+<line x1="361.3" x2="361.3" y1="88" y2="462" stroke="#bccab8" stroke-width="1"/>
+<text x="361.3" y="480" font-size="12" fill="#5c675f" text-anchor="middle">10x</text>
+<line x1="425.0" x2="425.0" y1="88" y2="462" stroke="#bccab8" stroke-width="1"/>
+<text x="425.0" y="480" font-size="12" fill="#5c675f" text-anchor="middle">20x</text>
+<line x1="509.0" x2="509.0" y1="88" y2="462" stroke="#bccab8" stroke-width="1"/>
+<text x="509.0" y="480" font-size="12" fill="#5c675f" text-anchor="middle">50x</text>
+<line x1="572.7" x2="572.7" y1="88" y2="462" stroke="#bccab8" stroke-width="1"/>
+<text x="572.7" y="480" font-size="12" fill="#5c675f" text-anchor="middle">100x</text>
+<line x1="636.3" x2="636.3" y1="88" y2="462" stroke="#bccab8" stroke-width="1"/>
+<text x="636.3" y="480" font-size="12" fill="#5c675f" text-anchor="middle">200x</text>
+<line x1="720.4" x2="720.4" y1="88" y2="462" stroke="#bccab8" stroke-width="1"/>
+<text x="720.4" y="480" font-size="12" fill="#5c675f" text-anchor="middle">500x</text>
+<line x1="784.0" x2="784.0" y1="88" y2="462" stroke="#bccab8" stroke-width="1"/>
+<text x="784.0" y="480" font-size="12" fill="#5c675f" text-anchor="middle">1000x</text>
+<text x="136" y="116.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="600">Assembly</text>
+<rect x="148" y="102.0" width="5" height="18" fill="#2a78d6"/>
+<text x="160.0" y="116.0" font-size="13" fill="#1e2622" font-weight="600">1.0x  written by the agent, verified by the harness</text>
+<text x="136" y="146.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">Rust</text>
+<path d="M 150 133.0 h 239.7 q 4 0 4 4 v 8 q 0 4 -4 4 h -239.7 z" fill="#727c75"/>
+<text x="401.7" y="146.0" font-size="13" fill="#1e2622" font-weight="400">14x</text>
+<text x="136" y="176.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">C++</text>
+<path d="M 150 163.0 h 240.7 q 4 0 4 4 v 8 q 0 4 -4 4 h -240.7 z" fill="#727c75"/>
+<text x="402.7" y="176.0" font-size="13" fill="#1e2622" font-weight="400">14x</text>
+<text x="136" y="206.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">C</text>
+<path d="M 150 193.0 h 241.6 q 4 0 4 4 v 8 q 0 4 -4 4 h -241.6 z" fill="#727c75"/>
+<text x="403.6" y="206.0" font-size="13" fill="#1e2622" font-weight="400">15x</text>
+<text x="136" y="236.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">Zig</text>
+<path d="M 150 223.0 h 248.9 q 4 0 4 4 v 8 q 0 4 -4 4 h -248.9 z" fill="#727c75"/>
+<text x="410.9" y="236.0" font-size="13" fill="#1e2622" font-weight="400">16x</text>
+<text x="136" y="266.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">Swift</text>
+<path d="M 150 253.0 h 271.6 q 4 0 4 4 v 8 q 0 4 -4 4 h -271.6 z" fill="#727c75"/>
+<text x="433.6" y="266.0" font-size="13" fill="#1e2622" font-weight="400">20x</text>
+<text x="136" y="296.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">Go</text>
+<path d="M 150 283.0 h 272.0 q 4 0 4 4 v 8 q 0 4 -4 4 h -272.0 z" fill="#727c75"/>
+<text x="434.0" y="296.0" font-size="13" fill="#1e2622" font-weight="400">20x</text>
+<text x="136" y="326.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">C#</text>
+<path d="M 150 313.0 h 274.3 q 4 0 4 4 v 8 q 0 4 -4 4 h -274.3 z" fill="#727c75"/>
+<text x="436.3" y="326.0" font-size="13" fill="#1e2622" font-weight="400">21x</text>
+<text x="136" y="356.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">Java</text>
+<path d="M 150 343.0 h 276.0 q 4 0 4 4 v 8 q 0 4 -4 4 h -276.0 z" fill="#727c75"/>
+<text x="438.0" y="356.0" font-size="13" fill="#1e2622" font-weight="400">21x</text>
+<text x="136" y="386.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">JavaScript</text>
+<path d="M 150 373.0 h 296.0 q 4 0 4 4 v 8 q 0 4 -4 4 h -296.0 z" fill="#727c75"/>
+<text x="458.0" y="386.0" font-size="13" fill="#1e2622" font-weight="400">26x</text>
+<text x="136" y="416.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">Ruby</text>
+<path d="M 150 403.0 h 549.0 q 4 0 4 4 v 8 q 0 4 -4 4 h -549.0 z" fill="#727c75"/>
+<text x="711.0" y="416.0" font-size="13" fill="#1e2622" font-weight="400">414x</text>
+<text x="136" y="446.0" font-size="14" fill="#1e2622" text-anchor="end" font-weight="400">Python</text>
+<path d="M 150 433.0 h 580.4 q 4 0 4 4 v 8 q 0 4 -4 4 h -580.4 z" fill="#727c75"/>
+<text x="742.4" y="446.0" font-size="13" fill="#1e2622" font-weight="400">583x</text>
+<text x="28" y="526" font-size="12" fill="#5c675f">Apple M4 Pro, 2026-11-11. Exact times: shootout/results/RESULTS.md</text>
+</svg>
